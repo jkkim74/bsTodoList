@@ -34,9 +34,10 @@
 
 ## 🌐 URL
 
+- **GitHub 저장소**: https://github.com/jkkim74/bsTodoList
 - **개발 서버**: https://3000-inpthy8x5rk4j3zc2m4jd-d0b9e1e2.sandbox.novita.ai
 - **API Health Check**: https://3000-inpthy8x5rk4j3zc2m4jd-d0b9e1e2.sandbox.novita.ai/api/health
-- **GitHub**: (배포 후 업데이트 예정)
+- **프로덕션**: (Cloudflare Pages 배포 후 업데이트)
 
 ## 💾 데이터 아키텍처
 
@@ -130,31 +131,90 @@ http://localhost:3000
 
 ## 📦 배포
 
-### Cloudflare Pages 배포
+### 🚀 Cloudflare Pages 배포 가이드
 
-1. **D1 데이터베이스 생성**
+#### 사전 준비
+1. **Cloudflare 계정** 필요 (무료)
+2. **Node.js 18+** 설치
+3. **Git** 설치
+
+#### Step 1: 프로젝트 클론
+```bash
+git clone https://github.com/jkkim74/bsTodoList.git
+cd bsTodoList
+npm install
+```
+
+#### Step 2: Cloudflare 로그인
+```bash
+npx wrangler login
+```
+브라우저가 열리면 Cloudflare 계정으로 로그인하세요.
+
+#### Step 3: D1 데이터베이스 생성
 ```bash
 # 프로덕션 데이터베이스 생성
 npx wrangler d1 create webapp-production
-
-# database_id를 wrangler.jsonc에 입력
 ```
 
-2. **마이그레이션 적용**
-```bash
-# 프로덕션 DB에 마이그레이션 적용
-npm run db:migrate:prod
+출력된 `database_id`를 복사하여 `wrangler.jsonc` 파일의 `d1_databases` 섹션에 입력:
+```jsonc
+"d1_databases": [
+  {
+    "binding": "DB",
+    "database_name": "webapp-production",
+    "database_id": "여기에-복사한-database-id-입력"
+  }
+]
 ```
 
-3. **Cloudflare Pages 프로젝트 생성**
+#### Step 4: 데이터베이스 마이그레이션
 ```bash
+# 프로덕션 DB에 스키마 적용
+npx wrangler d1 migrations apply webapp-production --remote
+```
+
+#### Step 5: Cloudflare Pages 프로젝트 생성
+```bash
+# 프로젝트 생성
 npx wrangler pages project create webapp --production-branch main
 ```
 
-4. **배포**
+#### Step 6: 빌드 및 배포
 ```bash
-npm run deploy
+# 빌드
+npm run build
+
+# 배포
+npx wrangler pages deploy dist --project-name webapp
 ```
+
+배포가 완료되면 다음과 같은 URL을 받게 됩니다:
+- **프로덕션 URL**: `https://webapp.pages.dev`
+- **브랜치 URL**: `https://main.webapp.pages.dev`
+
+#### Step 7: 테스트 계정 생성
+프로덕션 데이터베이스에 테스트 계정을 추가하려면:
+```bash
+npx wrangler d1 execute webapp-production --remote --file=./seed.sql
+```
+
+### 🔄 업데이트 배포
+코드를 수정한 후:
+```bash
+git add .
+git commit -m "Update: 변경 내용"
+git push origin main
+
+npm run build
+npx wrangler pages deploy dist --project-name webapp
+```
+
+### 🌍 커스텀 도메인 연결
+Cloudflare Pages 대시보드에서:
+1. 프로젝트 선택
+2. Custom domains 탭
+3. 도메인 추가 및 DNS 설정
 
 ## 🗂️ 프로젝트 구조
 
@@ -229,20 +289,26 @@ webapp/
 
 ## 🎯 추천 다음 단계
 
-1. **UI/UX 개선**
-   - 드래그 앤 드롭으로 분류하기
-   - 애니메이션 효과 추가
-   - 모바일 최적화
+1. **Cloudflare Pages 배포**
+   - 위의 배포 가이드를 따라 프로덕션 배포
+   - 영구 URL 획득 (webapp.pages.dev)
+   - 커스텀 도메인 연결 (선택사항)
 
-2. **기능 확장**
+2. **UI/UX 개선**
+   - 드래그 앤 드롭으로 분류하기
+   - 더 많은 애니메이션 효과
+   - 모바일 최적화 강화
+
+3. **기능 확장**
    - 회고 및 주간 목표 UI 완성
    - 알림 기능 (브라우저 알림)
    - 통계 대시보드 (주간/월간)
+   - 데이터 내보내기/가져오기
 
-3. **성능 최적화**
+4. **성능 최적화**
    - 오프라인 모드 지원 (Service Worker)
    - 캐싱 전략 개선
-   - 이미지 최적화
+   - PWA 변환
 
 ## 📝 참고 사항
 
@@ -250,6 +316,41 @@ webapp/
 - **인증**: JWT 기반으로 7일간 유효한 토큰 사용
 - **보안**: 비밀번호는 SHA-256으로 해시되어 저장 (프로덕션에서는 bcrypt 권장)
 - **로컬 개발**: --local 플래그로 로컬 SQLite 사용
+
+## 🔧 트러블슈팅
+
+### 배포 시 오류
+
+**"database_id not found" 오류**
+- `wrangler.jsonc`에 실제 database_id를 입력했는지 확인
+- `npx wrangler d1 create webapp-production` 명령 실행 후 출력된 ID 사용
+
+**"Authentication error" 오류**
+- `npx wrangler login` 재실행
+- 또는 `npx wrangler logout` 후 다시 로그인
+
+**빌드 오류**
+- `node_modules` 삭제 후 `npm install` 재실행
+- Node.js 버전 18 이상인지 확인
+
+### 로컬 개발 시 오류
+
+**포트 3000 사용 중**
+```bash
+npm run clean-port
+```
+
+**데이터베이스 초기화**
+```bash
+npm run db:reset
+```
+
+## 🔗 유용한 링크
+
+- **Cloudflare Pages 문서**: https://developers.cloudflare.com/pages/
+- **Cloudflare D1 문서**: https://developers.cloudflare.com/d1/
+- **Hono 문서**: https://hono.dev/
+- **Wrangler CLI**: https://developers.cloudflare.com/workers/wrangler/
 
 ## 📄 라이선스
 
@@ -261,4 +362,5 @@ Brain Dumping Team
 
 ---
 
-**최종 업데이트**: 2025-12-18
+**최종 업데이트**: 2025-12-18  
+**GitHub**: https://github.com/jkkim74/bsTodoList
