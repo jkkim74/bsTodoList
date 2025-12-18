@@ -49,44 +49,53 @@ function renderApp() {
 // Login page
 function renderLoginPage() {
   return `
-    <div class="min-h-screen flex items-center justify-center">
+    <div class="min-h-screen flex items-center justify-center p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
       <div class="card max-w-md w-full">
-        <h1 class="text-3xl font-bold text-center mb-6 text-primary">
-          <i class="fas fa-brain mr-2"></i>
-          브레인 덤핑 TO_DO_LIST
-        </h1>
+        <div class="text-center mb-8">
+          <h1 class="text-4xl font-bold mb-2" style="color: #2c5f2d;">
+            <i class="fas fa-brain mr-2"></i>
+            브레인 덤핑 TO_DO_LIST
+          </h1>
+          <p class="text-gray-600 text-sm">생각을 꺼내고, 정리하고, 실행하는 3단계 시스템</p>
+        </div>
         
         <div id="auth-form">
           <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-medium mb-2">이메일</label>
-            <input type="email" id="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary" placeholder="test@example.com">
+            <label class="block text-gray-700 text-sm font-medium mb-2">
+              <i class="fas fa-envelope mr-1"></i> 이메일
+            </label>
+            <input type="email" id="email" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="test@example.com">
           </div>
           
           <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-medium mb-2">비밀번호</label>
-            <input type="password" id="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary" placeholder="password123">
+            <label class="block text-gray-700 text-sm font-medium mb-2">
+              <i class="fas fa-lock mr-1"></i> 비밀번호
+            </label>
+            <input type="password" id="password" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="password123">
           </div>
           
           <div class="mb-6" id="username-field" style="display:none;">
-            <label class="block text-gray-700 text-sm font-medium mb-2">이름</label>
-            <input type="text" id="username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary" placeholder="홍길동">
+            <label class="block text-gray-700 text-sm font-medium mb-2">
+              <i class="fas fa-user mr-1"></i> 이름
+            </label>
+            <input type="text" id="username" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="홍길동">
           </div>
           
-          <div id="error-message" class="mb-4 text-red-500 text-sm hidden"></div>
+          <div id="error-message" class="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded hidden"></div>
           
-          <button onclick="handleLogin()" id="login-btn" class="w-full btn-primary mb-3">
-            로그인
+          <button onclick="handleLogin()" id="login-btn" class="w-full btn btn-primary mb-3 py-3">
+            <i class="fas fa-sign-in-alt mr-2"></i> 로그인
           </button>
           
-          <button onclick="toggleSignup()" id="toggle-btn" class="w-full btn-secondary">
-            회원가입
+          <button onclick="toggleSignup()" id="toggle-btn" class="w-full btn btn-secondary py-3">
+            <i class="fas fa-user-plus mr-2"></i> 회원가입
           </button>
         </div>
         
-        <div class="mt-6 p-4 bg-blue-50 rounded-lg text-sm text-gray-600">
-          <p class="font-medium mb-2">테스트 계정:</p>
-          <p>이메일: test@example.com</p>
-          <p>비밀번호: password123</p>
+        <div class="footer-note mt-6">
+          <p class="font-medium mb-2"><i class="fas fa-info-circle mr-1"></i> 테스트 계정:</p>
+          <p><strong>이메일:</strong> test@example.com</p>
+          <p><strong>비밀번호:</strong> password123</p>
         </div>
       </div>
     </div>
@@ -160,89 +169,133 @@ function handleLogout() {
 
 // Main page
 function renderMainPage() {
+  const today = new Date(currentDate)
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토']
+  const dayName = dayNames[today.getDay()]
+  
   return `
-    <div class="min-h-screen">
-      <nav class="bg-white shadow-sm mb-6">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 class="text-2xl font-bold text-primary">
+    <div class="min-h-screen" style="background-color: #f8f9fa;">
+      <!-- Header -->
+      <nav class="bg-white shadow-sm mb-6" style="border-bottom: 3px solid #2c5f2d;">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center flex-wrap gap-4">
+          <h1 class="text-2xl font-bold" style="color: #2c5f2d;">
             <i class="fas fa-brain mr-2"></i>
             브레인 덤핑 TO_DO_LIST
           </h1>
-          <div class="flex items-center space-x-4">
-            <input type="date" id="date-picker" value="${currentDate}" 
-              onchange="changeDate(this.value)"
-              class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary">
-            <span class="text-gray-700">${currentUser.username}님</span>
-            <button onclick="handleLogout()" class="btn-secondary">
+          <div class="flex items-center space-x-4 flex-wrap gap-2">
+            <div class="text-right">
+              <div class="text-sm text-gray-600">날짜</div>
+              <input type="date" id="date-picker" value="${currentDate}" 
+                onchange="changeDate(this.value)"
+                class="px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary transition-colors">
+            </div>
+            <div class="text-right">
+              <div class="text-sm text-gray-600">사용자</div>
+              <div class="font-medium text-gray-800">${currentUser.username}님</div>
+            </div>
+            <button onclick="handleLogout()" class="btn btn-secondary">
               <i class="fas fa-sign-out-alt mr-2"></i>로그아웃
             </button>
           </div>
         </div>
       </nav>
       
-      <div class="max-w-7xl mx-auto px-4">
+      <div class="max-w-7xl mx-auto px-4 pb-8">
+        <!-- Date Header -->
+        <div class="text-right mb-4 text-gray-600">
+          <strong>${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 (${dayName}요일)</strong>
+        </div>
+        
         <!-- STEP 1: 꺼내기 -->
-        <div class="card mb-6">
-          <h2 class="text-2xl font-bold text-gray-800 mb-4">
-            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
-            STEP 1: 꺼내기 (Brain Dump)
-          </h2>
-          <p class="text-gray-600 mb-4">▶ 머릿속의 모든 생각을 판단 없이 적어보세요</p>
+        <div class="step-box fade-in">
+          <div class="step-title">
+            📝 STEP 1: 꺼내기 (Brain Dump)
+          </div>
+          <div class="step-instruction">
+            ▶ 머릿속의 모든 생각을 판단 없이 적어보세요. 할 일, 걱정, 아이디어, 감정 모두 환영합니다!
+          </div>
           
           <div class="mb-4">
-            <textarea id="brain-dump-input" rows="3" 
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-              placeholder="예: 회의 준비, 프로젝트 마감일 확인, 친구에게 연락..."></textarea>
-            <button onclick="addBrainDumpTask()" class="btn-primary mt-2">
+            <textarea id="brain-dump-input" rows="4" 
+              class="brain-dump-input"
+              placeholder="예시: 회의 준비, 프로젝트 마감일 확인, 친구에게 연락, 운동하기...&#10;&#10;생각나는 대로 자유롭게 작성하세요!"></textarea>
+            <button onclick="addBrainDumpTask()" class="btn btn-primary mt-3">
               <i class="fas fa-plus mr-2"></i>추가하기
             </button>
           </div>
           
-          <div id="brain-dump-list" class="space-y-2"></div>
+          <div id="brain-dump-list"></div>
         </div>
         
         <!-- STEP 2: 분류하기 -->
-        <div class="card mb-6">
-          <h2 class="text-2xl font-bold text-gray-800 mb-4">
-            <i class="fas fa-folder-open text-blue-500 mr-2"></i>
-            STEP 2: 분류하기 (Categorize)
-          </h2>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <h3 class="font-bold text-red-600 mb-2">🔴 긴급·중요</h3>
-              <div id="urgent-important-list" class="space-y-2"></div>
-            </div>
-            <div>
-              <h3 class="font-bold text-yellow-600 mb-2">🟡 중요</h3>
-              <div id="important-list" class="space-y-2"></div>
-            </div>
-            <div>
-              <h3 class="font-bold text-blue-600 mb-2">🔵 나중에</h3>
-              <div id="later-list" class="space-y-2"></div>
-            </div>
-            <div>
-              <h3 class="font-bold text-gray-600 mb-2">❌ 내려놓기</h3>
-              <div id="let-go-list" class="space-y-2"></div>
-            </div>
+        <div class="section-header fade-in">
+          🗂️ STEP 2: 분류하기 (Categorize)
+        </div>
+        <div class="step-instruction mb-4">
+          ▶ 위에서 적은 내용들을 중요도와 긴급도에 따라 분류하세요.
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 fade-in">
+          <div class="card priority-urgent">
+            <h3 class="font-bold text-red-600 mb-3 text-lg">
+              🔴 긴급·중요<br>
+              <span class="text-xs font-normal text-gray-600">(오늘 반드시)</span>
+            </h3>
+            <div id="urgent-important-list"></div>
+          </div>
+          <div class="card priority-important">
+            <h3 class="font-bold text-yellow-600 mb-3 text-lg">
+              🟡 중요<br>
+              <span class="text-xs font-normal text-gray-600">(이번 주 내)</span>
+            </h3>
+            <div id="important-list"></div>
+          </div>
+          <div class="card priority-later">
+            <h3 class="font-bold text-blue-600 mb-3 text-lg">
+              🔵 나중에<br>
+              <span class="text-xs font-normal text-gray-600">(여유 있을 때)</span>
+            </h3>
+            <div id="later-list"></div>
+          </div>
+          <div class="card priority-letgo">
+            <h3 class="font-bold text-gray-600 mb-3 text-lg">
+              ❌ 내려놓기<br>
+              <span class="text-xs font-normal text-gray-600">(의도적으로)</span>
+            </h3>
+            <div id="let-go-list"></div>
           </div>
         </div>
         
         <!-- STEP 3: 행동하기 -->
-        <div class="card mb-6">
-          <h2 class="text-2xl font-bold text-gray-800 mb-4">
-            <i class="fas fa-check-circle text-green-500 mr-2"></i>
-            STEP 3: 행동하기 (Take Action)
-          </h2>
-          <p class="text-gray-600 mb-4">▶ 오늘의 TOP 3 할 일</p>
-          
-          <div id="top3-list" class="space-y-4"></div>
+        <div class="section-header fade-in">
+          ✅ STEP 3: 행동하기 (Take Action)
+        </div>
+        <div class="step-instruction mb-4">
+          ▶ 긴급·중요 항목 중 오늘 반드시 실행할 3가지만 선택하고 구체적인 행동 계획을 세우세요.
         </div>
         
+        <div id="top3-list" class="mb-6 fade-in"></div>
+        
         <!-- Statistics -->
-        <div class="card">
-          <h2 class="text-xl font-bold text-gray-800 mb-4">📊 오늘의 통계</h2>
-          <div id="statistics" class="grid grid-cols-3 gap-4 text-center"></div>
+        <div class="section-header fade-in">
+          📊 오늘의 통계
+        </div>
+        <div id="statistics" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 fade-in"></div>
+        
+        <!-- Footer Tips -->
+        <div class="footer-note fade-in">
+          <strong>💡 브레인 덤핑 TO_DO_LIST 사용 팁:</strong>
+          <ul>
+            <li><strong>아침에:</strong> STEP 1에서 머릿속 모든 생각을 쏟아내고, STEP 2-3으로 우선순위를 정하세요.</li>
+            <li><strong>하루 중:</strong> 새로운 할 일이 생기면 즉시 STEP 1에 추가하고, 필요시 우선순위를 재조정하세요.</li>
+            <li><strong>저녁에:</strong> 완료된 항목을 체크하며 성취감을 느끼고, 내일을 준비하세요.</li>
+            <li><strong>핵심:</strong> 완벽하게 하려 하지 마세요. 생각을 '밖으로 꺼내는 것' 자체가 가장 중요합니다.</li>
+            <li><strong>주의:</strong> TOP 3는 반드시 3개로 제한하세요. 집중력이 분산되는 것을 방지합니다.</li>
+          </ul>
+        </div>
+        
+        <div class="text-center text-gray-500 text-sm mt-6">
+          "생각을 비우는 것이 아니라, 꺼내는 것이다" - 닉 트렌턴, 『브레인 덤핑』
         </div>
       </div>
     </div>
@@ -273,24 +326,37 @@ async function loadDailyOverview() {
 function renderBrainDumpList(tasks) {
   const list = document.getElementById('brain-dump-list')
   if (tasks.length === 0) {
-    list.innerHTML = '<p class="text-gray-400 text-center py-4">아직 작성된 항목이 없습니다</p>'
+    list.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>아직 작성된 항목이 없습니다</p>
+        <p class="text-sm mt-2">머릿속 생각을 자유롭게 적어보세요!</p>
+      </div>
+    `
     return
   }
   
   list.innerHTML = tasks.map(task => `
-    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-      <span class="flex-1">${task.title}</span>
-      <div class="flex space-x-2">
-        <select onchange="categorizeTask(${task.task_id}, this.value)" class="px-2 py-1 border rounded text-sm">
-          <option value="">분류</option>
-          <option value="URGENT_IMPORTANT">긴급·중요</option>
-          <option value="IMPORTANT">중요</option>
-          <option value="LATER">나중에</option>
-          <option value="LET_GO">내려놓기</option>
-        </select>
-        <button onclick="deleteTask(${task.task_id})" class="text-red-500 hover:text-red-700">
-          <i class="fas fa-trash"></i>
-        </button>
+    <div class="task-item fade-in">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex-1">
+          <div class="font-medium text-gray-800">${task.title}</div>
+          ${task.description ? `<div class="text-sm text-gray-600 mt-1">${task.description}</div>` : ''}
+        </div>
+        <div class="flex items-center space-x-2">
+          <select onchange="categorizeTask(${task.task_id}, this.value)" 
+            class="px-3 py-1 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+            <option value="">분류하기</option>
+            <option value="URGENT_IMPORTANT">🔴 긴급·중요</option>
+            <option value="IMPORTANT">🟡 중요</option>
+            <option value="LATER">🔵 나중에</option>
+            <option value="LET_GO">❌ 내려놓기</option>
+          </select>
+          <button onclick="deleteTask(${task.task_id})" 
+            class="text-gray-400 hover:text-red-500 transition-colors">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
       </div>
     </div>
   `).join('')
@@ -306,21 +372,30 @@ function renderCategorizedLists(data) {
 function renderTaskList(elementId, tasks) {
   const list = document.getElementById(elementId)
   if (tasks.length === 0) {
-    list.innerHTML = '<p class="text-gray-400 text-sm">없음</p>'
+    list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">없음</div>'
     return
   }
   
   list.innerHTML = tasks.map(task => `
-    <div class="p-2 bg-gray-50 rounded text-sm">
-      <div class="flex items-center justify-between mb-1">
-        <span class="font-medium">${task.title}</span>
-        <button onclick="deleteTask(${task.task_id})" class="text-red-500 hover:text-red-700">
+    <div class="task-item bg-white fade-in">
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <div class="flex-1">
+          <div class="font-medium text-gray-800 text-sm">${task.title}</div>
+          ${task.description ? `<div class="text-xs text-gray-600 mt-1">${task.description}</div>` : ''}
+        </div>
+        <button onclick="deleteTask(${task.task_id})" 
+          class="text-gray-400 hover:text-red-500 transition-colors">
           <i class="fas fa-times text-xs"></i>
         </button>
       </div>
-      ${task.estimated_time ? `<div class="text-xs text-gray-500">⏱ ${task.estimated_time}</div>` : ''}
-      <button onclick="promptSetTop3(${task.task_id})" class="text-xs text-primary hover:underline mt-1">
-        TOP 3 설정
+      ${task.estimated_time ? `
+        <div class="text-xs text-gray-600 mb-2">
+          <i class="far fa-clock"></i> ${task.estimated_time}
+        </div>
+      ` : ''}
+      <button onclick="promptSetTop3(${task.task_id})" 
+        class="btn btn-primary text-xs py-1 px-3">
+        <i class="fas fa-star mr-1"></i> TOP 3 설정
       </button>
     </div>
   `).join('')
@@ -330,27 +405,54 @@ function renderTaskList(elementId, tasks) {
 function renderTop3List(tasks) {
   const list = document.getElementById('top3-list')
   if (tasks.length === 0) {
-    list.innerHTML = '<p class="text-gray-400 text-center py-4">TOP 3를 설정해주세요</p>'
+    list.innerHTML = `
+      <div class="empty-state card">
+        <i class="fas fa-star"></i>
+        <p>오늘의 TOP 3를 설정해주세요</p>
+        <p class="text-sm mt-2">긴급·중요 항목 중에서 선택하세요</p>
+      </div>
+    `
     return
   }
   
   list.innerHTML = tasks.map((task, index) => `
-    <div class="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg">
-      <div class="flex items-start justify-between mb-2">
-        <h3 class="text-lg font-bold text-gray-800">${index + 1}. ${task.title}</h3>
+    <div class="top3-item fade-in ${task.status === 'COMPLETED' ? 'opacity-75' : ''}">
+      <div class="flex items-start justify-between mb-3">
+        <div class="flex items-start flex-1">
+          <span class="top3-number">${index + 1}</span>
+          <div class="flex-1">
+            <h3 class="top3-title ${task.status === 'COMPLETED' ? 'line-through' : ''}">${task.title}</h3>
+            ${task.description ? `<p class="text-sm opacity-90 mt-1">${task.description}</p>` : ''}
+          </div>
+        </div>
         <button onclick="${task.status === 'COMPLETED' ? `uncompleteTask(${task.task_id})` : `completeTask(${task.task_id})`}" 
-          class="text-2xl ${task.status === 'COMPLETED' ? 'text-green-500' : 'text-gray-300'}">
+          class="text-3xl transition-all hover:scale-110 ${task.status === 'COMPLETED' ? 'text-green-300' : 'text-white/50 hover:text-white'}">
           <i class="fas fa-check-circle"></i>
         </button>
       </div>
       ${task.action_detail ? `
-        <p class="text-gray-600 text-sm mb-2">${task.action_detail}</p>
+        <div class="top3-detail">
+          <i class="fas fa-clipboard-list mr-1"></i>
+          ${task.action_detail}
+        </div>
       ` : ''}
-      ${task.time_slot ? `
-        <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-          ${task.time_slot === 'MORNING' ? '🌅 오전' : task.time_slot === 'AFTERNOON' ? '☀️ 오후' : '🌙 저녁'}
-        </span>
-      ` : ''}
+      <div class="mt-3 flex items-center gap-2">
+        ${task.time_slot ? `
+          <span class="time-badge">
+            ${task.time_slot === 'MORNING' ? '🌅 오전 (06:00-12:00)' : task.time_slot === 'AFTERNOON' ? '☀️ 오후 (12:00-18:00)' : '🌙 저녁 (18:00-22:00)'}
+          </span>
+        ` : ''}
+        ${task.estimated_time ? `
+          <span class="time-badge">
+            <i class="far fa-clock"></i> ${task.estimated_time}
+          </span>
+        ` : ''}
+        ${task.completed_at ? `
+          <span class="time-badge">
+            <i class="fas fa-check"></i> 완료됨
+          </span>
+        ` : ''}
+      </div>
     </div>
   `).join('')
 }
@@ -359,17 +461,23 @@ function renderTop3List(tasks) {
 function renderStatistics(stats) {
   const div = document.getElementById('statistics')
   div.innerHTML = `
-    <div class="p-4 bg-blue-50 rounded-lg">
-      <div class="text-3xl font-bold text-blue-600">${stats.totalTasks}</div>
-      <div class="text-sm text-gray-600">전체 할 일</div>
+    <div class="stat-card fade-in">
+      <div class="stat-number stat-total">
+        <i class="fas fa-list"></i> ${stats.totalTasks}
+      </div>
+      <div class="stat-label">전체 할 일</div>
     </div>
-    <div class="p-4 bg-green-50 rounded-lg">
-      <div class="text-3xl font-bold text-green-600">${stats.completedTasks}</div>
-      <div class="text-sm text-gray-600">완료</div>
+    <div class="stat-card fade-in">
+      <div class="stat-number stat-completed">
+        <i class="fas fa-check-circle"></i> ${stats.completedTasks}
+      </div>
+      <div class="stat-label">완료</div>
     </div>
-    <div class="p-4 bg-purple-50 rounded-lg">
-      <div class="text-3xl font-bold text-purple-600">${stats.completionRate}%</div>
-      <div class="text-sm text-gray-600">완료율</div>
+    <div class="stat-card fade-in">
+      <div class="stat-number stat-rate">
+        <i class="fas fa-chart-pie"></i> ${stats.completionRate}%
+      </div>
+      <div class="stat-label">완료율</div>
     </div>
   `
 }

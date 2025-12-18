@@ -44,8 +44,9 @@ app.get('/', (c) => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>브레인 덤핑 TO_DO_LIST</title>
-        <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+        <link href="/static/styles.css" rel="stylesheet">
+        <script src="https://cdn.tailwindcss.com"></script>
         <script>
           tailwind.config = {
             theme: {
@@ -58,22 +59,8 @@ app.get('/', (c) => {
             }
           }
         </script>
-        <style>
-          body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-          }
-          .btn-primary {
-            @apply bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-colors;
-          }
-          .btn-secondary {
-            @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors;
-          }
-          .card {
-            @apply bg-white rounded-xl shadow-md p-6;
-          }
-        </style>
     </head>
-    <body class="bg-gray-50">
+    <body>
         <div id="app"></div>
         
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
