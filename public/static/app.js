@@ -542,18 +542,118 @@ async function categorizeTask(taskId, priority) {
 }
 
 function promptSetTop3(taskId) {
-  const order = prompt('TOP 3 순서를 입력하세요 (1-3):')
-  if (!order || order < 1 || order > 3) return
-  
-  const actionDetail = prompt('구체적인 행동 계획을 입력하세요:')
-  if (!actionDetail) return
-  
-  setTop3Task(taskId, parseInt(order), actionDetail)
+  showTop3Modal(taskId)
 }
 
-async function setTop3Task(taskId, order, actionDetail) {
+// Show TOP 3 modal
+function showTop3Modal(taskId) {
+  const modal = document.createElement('div')
+  modal.id = 'top3-modal'
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'
+  modal.innerHTML = `
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 fade-in">
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold text-gray-800">
+            <i class="fas fa-star text-yellow-500 mr-2"></i>
+            TOP 3 설정
+          </h3>
+          <button onclick="closeTop3Modal()" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-sort-numeric-down mr-1"></i>
+              우선순위 (1-3)
+            </label>
+            <select id="top3-order" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary transition-colors">
+              <option value="">선택하세요</option>
+              <option value="1">1순위 (가장 중요)</option>
+              <option value="2">2순위</option>
+              <option value="3">3순위</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-clipboard-list mr-1"></i>
+              구체적인 행동 계획
+            </label>
+            <textarea id="top3-action" rows="4" 
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary transition-colors"
+              placeholder="예시: 회의 자료 3페이지 작성하고 팀장님께 검토 요청"></textarea>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="far fa-clock mr-1"></i>
+              실행 시간대 (선택)
+            </label>
+            <select id="top3-timeslot" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary transition-colors">
+              <option value="">선택 안 함</option>
+              <option value="MORNING">🌅 오전 (06:00-12:00)</option>
+              <option value="AFTERNOON">☀️ 오후 (12:00-18:00)</option>
+              <option value="EVENING">🌙 저녁 (18:00-22:00)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="mt-6 flex gap-3">
+          <button onclick="closeTop3Modal()" class="flex-1 btn btn-secondary">
+            <i class="fas fa-times mr-2"></i>취소
+          </button>
+          <button onclick="submitTop3(${taskId})" class="flex-1 btn btn-primary">
+            <i class="fas fa-check mr-2"></i>설정
+          </button>
+        </div>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+}
+
+// Close TOP 3 modal
+function closeTop3Modal() {
+  const modal = document.getElementById('top3-modal')
+  if (modal) {
+    modal.remove()
+  }
+}
+
+// Submit TOP 3
+async function submitTop3(taskId) {
+  const order = document.getElementById('top3-order').value
+  const actionDetail = document.getElementById('top3-action').value.trim()
+  const timeSlot = document.getElementById('top3-timeslot').value || null
+  
+  if (!order) {
+    alert('우선순위를 선택해주세요')
+    return
+  }
+  
+  if (!actionDetail) {
+    alert('구체적인 행동 계획을 입력해주세요')
+    return
+  }
+  
+  closeTop3Modal()
+  await setTop3Task(taskId, parseInt(order), actionDetail, timeSlot)
+}
+
+function setTop3Task(taskId, order, actionDetail, timeSlot = null) {
+  return setTop3TaskWithTimeSlot(taskId, order, actionDetail, timeSlot)
+}
+
+async function setTop3TaskWithTimeSlot(taskId, order, actionDetail, timeSlot = null) {
   try {
-    await axios.patch(`${API_BASE}/tasks/${taskId}/top3`, { order, action_detail: actionDetail })
+    await axios.patch(`${API_BASE}/tasks/${taskId}/top3`, { 
+      order, 
+      action_detail: actionDetail,
+      time_slot: timeSlot
+    })
     loadDailyOverview()
   } catch (error) {
     alert('TOP 3 설정 실패: ' + (error.response?.data?.error || error.message))
