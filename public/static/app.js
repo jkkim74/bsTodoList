@@ -367,6 +367,7 @@ function renderCategorizedLists(data) {
   renderTaskList('urgent-important-list', data.urgentImportantTasks)
   renderTaskList('important-list', data.importantTasks)
   renderTaskList('later-list', data.laterTasks)
+  renderLetGoList('let-go-list', data.letGoTasks)
 }
 
 function renderTaskList(elementId, tasks) {
@@ -397,6 +398,33 @@ function renderTaskList(elementId, tasks) {
         class="btn btn-primary text-xs py-1 px-3">
         <i class="fas fa-star mr-1"></i> TOP 3 설정
       </button>
+    </div>
+  `).join('')
+}
+
+// Render let go list (내려놓기)
+function renderLetGoList(elementId, tasks) {
+  const list = document.getElementById(elementId)
+  if (tasks.length === 0) {
+    list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">없음</div>'
+    return
+  }
+  
+  list.innerHTML = tasks.map(task => `
+    <div class="task-item bg-white fade-in">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex-1">
+          <div class="font-medium text-gray-600 text-sm line-through">${task.title}</div>
+          ${task.description ? `<div class="text-xs text-gray-500 mt-1 line-through">${task.description}</div>` : ''}
+          <div class="text-xs text-gray-400 mt-2 italic">
+            <i class="fas fa-check-circle mr-1"></i>의도적으로 내려놓음
+          </div>
+        </div>
+        <button onclick="deleteTask(${task.task_id})" 
+          class="text-gray-400 hover:text-red-500 transition-colors">
+          <i class="fas fa-times text-xs"></i>
+        </button>
+      </div>
     </div>
   `).join('')
 }

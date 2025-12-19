@@ -179,6 +179,7 @@ export interface DailyOverviewResponse {
   urgentImportantTasks: DailyTask[]
   importantTasks: DailyTask[]
   laterTasks: DailyTask[]
+  letGoTasks: DailyTask[]
   top3Tasks: DailyTask[]
   statistics: {
     totalTasks: number

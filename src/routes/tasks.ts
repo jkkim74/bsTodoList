@@ -55,10 +55,10 @@ tasks.patch('/:taskId/categorize', async (c) => {
       return errorResponse(c, 'Priority is required', 400)
     }
 
-    // Verify task ownership
+    // Verify task ownership and get task details
     const task = await c.env.DB.prepare(
-      'SELECT task_id FROM daily_tasks WHERE task_id = ? AND user_id = ?'
-    ).bind(taskId, userId).first()
+      'SELECT task_id, task_date, title, description FROM daily_tasks WHERE task_id = ? AND user_id = ?'
+    ).bind(taskId, userId).first<DailyTask>()
 
     if (!task) {
       return errorResponse(c, '할 일을 찾을 수 없습니다.', 404)
@@ -69,6 +69,15 @@ tasks.patch('/:taskId/categorize', async (c) => {
       SET step = 'CATEGORIZE', priority = ?, estimated_time = ?, updated_at = ?
       WHERE task_id = ?
     `).bind(priority, estimated_time, getCurrentDateTime(), taskId).run()
+
+    // If priority is LET_GO, also add to let_go_items table
+    if (priority === 'LET_GO') {
+      const content = task.description ? `${task.title} - ${task.description}` : task.title
+      await c.env.DB.prepare(`
+        INSERT INTO let_go_items (user_id, task_date, content) 
+        VALUES (?, ?, ?)
+      `).bind(userId, task.task_date, content).run()
+    }
 
     const updatedTask = await c.env.DB.prepare(
       'SELECT * FROM daily_tasks WHERE task_id = ?'
@@ -144,6 +153,7 @@ tasks.get('/daily/:date', async (c) => {
     const urgentImportantTasks = tasks.filter(t => t.priority === 'URGENT_IMPORTANT')
     const importantTasks = tasks.filter(t => t.priority === 'IMPORTANT')
     const laterTasks = tasks.filter(t => t.priority === 'LATER')
+    const letGoTasks = tasks.filter(t => t.priority === 'LET_GO')
     const top3Tasks = tasks.filter(t => t.is_top3 === 1).sort((a, b) => 
       (a.top3_order || 0) - (b.top3_order || 0)
     )
@@ -159,6 +169,7 @@ tasks.get('/daily/:date', async (c) => {
       urgentImportantTasks,
       importantTasks,
       laterTasks,
+      letGoTasks,
       top3Tasks,
       statistics: {
         totalTasks,
