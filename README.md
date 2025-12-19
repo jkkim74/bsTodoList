@@ -131,12 +131,22 @@ http://localhost:3000
 
 ## 📦 배포
 
-### 🚀 Cloudflare Pages 배포 가이드
+### 📚 배포 가이드
+
+**최신 배포 가이드**: [DEPLOYMENT_UPDATE.md](./DEPLOYMENT_UPDATE.md) 파일을 확인하세요!
+
+- ✅ 로컬 환경에서 직접 배포
+- ✅ Cloudflare Dashboard에서 GitHub 연동 배포
+- ✅ 문제 해결 가이드
+- ✅ 수정사항 재배포 방법
+
+### 🚀 빠른 배포 가이드
 
 #### 사전 준비
-1. **Cloudflare 계정** 필요 (무료)
+1. **Cloudflare 계정** 필요 (무료) - [가입하기](https://dash.cloudflare.com/sign-up)
 2. **Node.js 18+** 설치
 3. **Git** 설치
+4. **이메일 인증** 완료 (Cloudflare)
 
 #### Step 1: 프로젝트 클론
 ```bash
@@ -362,5 +372,6 @@ Brain Dumping Team
 
 ---
 
-**최종 업데이트**: 2025-12-18  
-**GitHub**: https://github.com/jkkim74/bsTodoList
+**최종 업데이트**: 2025-12-19  
+**GitHub**: https://github.com/jkkim74/bsTodoList  
+**배포 가이드**: [DEPLOYMENT_UPDATE.md](./DEPLOYMENT_UPDATE.md)
