@@ -223,18 +223,26 @@ tasks.delete('/:taskId', async (c) => {
     const taskId = c.req.param('taskId')
 
     const task = await c.env.DB.prepare(
-      'SELECT task_id FROM daily_tasks WHERE task_id = ? AND user_id = ?'
-    ).bind(taskId, userId).first()
+      'SELECT task_id, priority, task_date, title, description FROM daily_tasks WHERE task_id = ? AND user_id = ?'
+    ).bind(taskId, userId).first<DailyTask>()
 
     if (!task) {
       return errorResponse(c, '할 일을 찾을 수 없습니다.', 404)
+    }
+
+    // If task is LET_GO priority, also delete from let_go_items table
+    if (task.priority === 'LET_GO') {
+      const content = task.description ? `${task.title} - ${task.description}` : task.title
+      await c.env.DB.prepare(
+        'DELETE FROM let_go_items WHERE user_id = ? AND task_date = ? AND content = ?'
+      ).bind(userId, task.task_date, content).run()
     }
 
     await c.env.DB.prepare(
       'DELETE FROM daily_tasks WHERE task_id = ?'
     ).bind(taskId).run()
 
-    return successResponse(c, null, '삭제되었습니다.', 204)
+    return c.json({ success: true, message: '삭제되었습니다.' }, 200)
   } catch (error) {
     console.error('Delete task error:', error)
     return errorResponse(c, 'Internal server error', 500)
