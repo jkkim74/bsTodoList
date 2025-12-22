@@ -176,47 +176,61 @@ function renderMainPage() {
   return `
     <div class="min-h-screen" style="background-color: #f8f9fa;">
       <!-- Header -->
-      <nav class="bg-white shadow-sm mb-6" style="border-bottom: 3px solid #2c5f2d;">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center flex-wrap gap-4">
-          <h1 class="text-2xl font-bold" style="color: #2c5f2d;">
-            <i class="fas fa-brain mr-2"></i>
-            브레인 덤핑 TO_DO_LIST
-          </h1>
-          <div class="flex items-center space-x-4 flex-wrap gap-2">
-            <div class="text-right">
-              <div class="text-sm text-gray-600">날짜</div>
-              <input type="date" id="date-picker" value="${currentDate}" 
-                onchange="changeDate(this.value)"
-                class="px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary transition-colors">
+      <nav class="bg-white shadow-sm mb-4 md:mb-6" style="border-bottom: 3px solid #2c5f2d;">
+        <div class="max-w-7xl mx-auto px-3 md:px-4 py-3 md:py-4">
+          <!-- Mobile: Stacked layout, Desktop: Flex row -->
+          <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+            <!-- Title -->
+            <h1 class="text-xl md:text-2xl font-bold flex items-center" style="color: #2c5f2d;">
+              <i class="fas fa-brain mr-2"></i>
+              <span class="hidden sm:inline">브레인 덤핑 TO_DO_LIST</span>
+              <span class="sm:hidden">Brain Dump</span>
+            </h1>
+            
+            <!-- Controls: Mobile stacked, Desktop row -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+              <!-- Date Picker -->
+              <div class="flex items-center justify-between sm:justify-start gap-2">
+                <label class="text-sm text-gray-600 sm:text-right min-w-[40px]">날짜</label>
+                <input type="date" id="date-picker" value="${currentDate}" 
+                  onchange="changeDate(this.value)"
+                  class="flex-1 sm:flex-initial px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary transition-colors text-sm md:text-base">
+              </div>
+              
+              <!-- User Info & Logout -->
+              <div class="flex items-center justify-between sm:justify-start gap-2">
+                <div class="flex items-center gap-2">
+                  <i class="fas fa-user text-gray-500 text-sm"></i>
+                  <span class="font-medium text-gray-800 text-sm md:text-base">${currentUser.username}님</span>
+                </div>
+                <button onclick="handleLogout()" class="btn btn-secondary text-sm">
+                  <i class="fas fa-sign-out-alt mr-1 sm:mr-2"></i>
+                  <span class="hidden xs:inline">로그아웃</span>
+                  <span class="xs:hidden">OUT</span>
+                </button>
+              </div>
             </div>
-            <div class="text-right">
-              <div class="text-sm text-gray-600">사용자</div>
-              <div class="font-medium text-gray-800">${currentUser.username}님</div>
-            </div>
-            <button onclick="handleLogout()" class="btn btn-secondary">
-              <i class="fas fa-sign-out-alt mr-2"></i>로그아웃
-            </button>
           </div>
         </div>
       </nav>
       
-      <div class="max-w-7xl mx-auto px-4 pb-8">
+      <div class="max-w-7xl mx-auto px-3 md:px-4 pb-8">
         <!-- Date Header -->
-        <div class="text-right mb-4 text-gray-600">
+        <div class="text-center md:text-right mb-3 md:mb-4 text-gray-600 text-sm md:text-base">
           <strong>${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 (${dayName}요일)</strong>
         </div>
         
         <!-- Weekly Goals Mini Header -->
         <div id="weekly-goals-mini" class="card mb-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="toggleWeeklyGoals()">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <span class="text-2xl">🎯</span>
-              <div>
-                <div class="font-bold text-gray-800">이번 주 목표</div>
-                <div id="weekly-goals-summary" class="text-sm text-gray-600">로딩 중...</div>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div class="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+              <span class="text-xl sm:text-2xl flex-shrink-0">🎯</span>
+              <div class="flex-1 min-w-0">
+                <div class="font-bold text-gray-800 text-sm sm:text-base">이번 주 목표</div>
+                <div id="weekly-goals-summary" class="text-xs sm:text-sm text-gray-600 truncate">로딩 중...</div>
               </div>
             </div>
-            <button id="weekly-goals-toggle-btn" class="text-gray-500 hover:text-gray-700">
+            <button id="weekly-goals-toggle-btn" class="text-gray-500 hover:text-gray-700 sm:ml-2">
               <i class="fas fa-chevron-down"></i>
             </button>
           </div>
@@ -224,23 +238,23 @@ function renderMainPage() {
         
         <!-- Weekly Goals Detail Section -->
         <div id="weekly-goals-detail" class="card mb-6" style="display: none;">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-bold text-gray-800">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+            <h3 class="text-lg sm:text-xl font-bold text-gray-800">
               🎯 이번 주 목표
             </h3>
-            <div class="text-sm text-gray-600" id="weekly-goals-date-range"></div>
+            <div class="text-xs sm:text-sm text-gray-600" id="weekly-goals-date-range"></div>
           </div>
           
-          <div id="weekly-goals-list" class="space-y-4 mb-4"></div>
+          <div id="weekly-goals-list" class="space-y-3 sm:space-y-4 mb-4"></div>
           
-          <button onclick="openAddGoalModal()" class="btn btn-primary w-full">
+          <button onclick="openAddGoalModal()" class="btn btn-primary w-full text-sm sm:text-base">
             <i class="fas fa-plus mr-2"></i>새 주간 목표 추가
           </button>
         </div>
         
         <!-- STEP 1: 꺼내기 -->
         <div class="step-box fade-in">
-          <div class="step-title">
+          <div class="step-title text-base sm:text-xl md:text-2xl">
             📝 STEP 1: 꺼내기 (Brain Dump)
           </div>
           <div class="step-instruction">
