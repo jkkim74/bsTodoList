@@ -1370,59 +1370,66 @@ function openAddGoalModal() {
   modal.className = 'modal-overlay'
   modal.innerHTML = `
     <div class="modal-content max-w-md">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-xl font-bold">새 주간 목표 추가</h3>
-        <button onclick="closeAddGoalModal()" class="text-gray-500 hover:text-gray-700">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            우선순위: ${nextOrder}번째 목표
-          </label>
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-bold text-gray-800">
+            <i class="fas fa-target text-blue-500 mr-2"></i>새 주간 목표 추가
+          </h3>
+          <button onclick="closeAddGoalModal()" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
         </div>
         
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            목표 제목 *
-          </label>
-          <input 
-            type="text" 
-            id="goal-title" 
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="예: 프로젝트 A 완료하기"
-            maxlength="100"
-          />
+        <div class="space-y-4">
+          <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-blue-200">
+            <p class="text-sm font-medium text-gray-700">
+              <i class="fas fa-sort-numeric-up mr-2 text-blue-500"></i>
+              우선순위: <span class="text-blue-600 font-bold">${nextOrder}번째 목표</span>
+            </p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-pencil-alt text-green-500 mr-1"></i>
+              목표 제목 <span class="text-red-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              id="goal-title" 
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              placeholder="예: 프로젝트 A 완료하기"
+              maxlength="100"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-calendar-check text-orange-500 mr-1"></i>
+              목표일 (선택)
+            </label>
+            <input 
+              type="date" 
+              id="goal-target-date" 
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              min="${weeklyGoalsData.weekStartDate}"
+              max="${weeklyGoalsData.weekEndDate}"
+            />
+          </div>
+          
+          <div class="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+            주간 목표는 이번 주 <span class="font-semibold">(${weeklyGoalsData.weekStartDate} ~ ${weeklyGoalsData.weekEndDate})</span> 동안 달성할 목표입니다.
+          </div>
         </div>
         
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            목표일 (선택)
-          </label>
-          <input 
-            type="date" 
-            id="goal-target-date" 
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            min="${weeklyGoalsData.weekStartDate}"
-            max="${weeklyGoalsData.weekEndDate}"
-          />
+        <div class="flex space-x-3 mt-6">
+          <button onclick="closeAddGoalModal()" class="flex-1 btn btn-secondary">
+            취소
+          </button>
+          <button onclick="submitAddGoal()" class="flex-1 btn btn-primary">
+            <i class="fas fa-plus mr-2"></i>추가
+          </button>
         </div>
-        
-        <div class="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-          <i class="fas fa-info-circle mr-1"></i>
-          주간 목표는 이번 주 (${weeklyGoalsData.weekStartDate} ~ ${weeklyGoalsData.weekEndDate}) 동안 달성할 목표입니다.
-        </div>
-      </div>
-      
-      <div class="flex space-x-3 mt-6">
-        <button onclick="closeAddGoalModal()" class="flex-1 btn btn-secondary">
-          취소
-        </button>
-        <button onclick="submitAddGoal()" class="flex-1 btn btn-primary">
-          <i class="fas fa-plus mr-2"></i>추가
-        </button>
       </div>
     </div>
   `
