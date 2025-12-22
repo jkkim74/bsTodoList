@@ -567,14 +567,18 @@ function showTop3Modal(taskId) {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
               <i class="fas fa-sort-numeric-down mr-1"></i>
-              우선순위 (1-3)
+              우선순위 (선택사항)
             </label>
             <select id="top3-order" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary transition-colors">
-              <option value="">선택하세요</option>
+              <option value="">자동 배정 (빈 슬롯 찾기)</option>
               <option value="1">1순위 (가장 중요)</option>
               <option value="2">2순위</option>
               <option value="3">3순위</option>
             </select>
+            <p class="text-xs text-gray-500 mt-1">
+              <i class="fas fa-info-circle mr-1"></i>
+              선택하지 않으면 자동으로 빈 슬롯에 배정됩니다
+            </p>
           </div>
           
           <div>
@@ -625,14 +629,10 @@ function closeTop3Modal() {
 
 // Submit TOP 3
 async function submitTop3(taskId) {
-  const order = document.getElementById('top3-order').value
+  const orderValue = document.getElementById('top3-order').value
+  const order = orderValue ? parseInt(orderValue) : null
   const actionDetail = document.getElementById('top3-action').value.trim()
   const timeSlot = document.getElementById('top3-timeslot').value || null
-  
-  if (!order) {
-    alert('우선순위를 선택해주세요')
-    return
-  }
   
   if (!actionDetail) {
     alert('구체적인 행동 계획을 입력해주세요')
@@ -640,7 +640,7 @@ async function submitTop3(taskId) {
   }
   
   closeTop3Modal()
-  await setTop3Task(taskId, parseInt(order), actionDetail, timeSlot)
+  await setTop3Task(taskId, order, actionDetail, timeSlot)
 }
 
 function setTop3Task(taskId, order, actionDetail, timeSlot = null) {

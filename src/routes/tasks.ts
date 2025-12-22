@@ -96,10 +96,10 @@ tasks.patch('/:taskId/top3', async (c) => {
     const userId = c.get('userId') as number
     const taskId = c.req.param('taskId')
     const body = await c.req.json<TaskTop3Request>()
-    const { order, action_detail, time_slot = null } = body
+    let { order, action_detail, time_slot = null } = body
 
-    if (!order || order < 1 || order > 3) {
-      return errorResponse(c, 'Order must be between 1 and 3', 400)
+    if (!action_detail) {
+      return errorResponse(c, 'Action detail is required', 400)
     }
 
     // Verify task ownership
@@ -111,12 +111,40 @@ tasks.patch('/:taskId/top3', async (c) => {
       return errorResponse(c, '할 일을 찾을 수 없습니다.', 404)
     }
 
-    // Clear existing TOP 3 with same order for the date
-    await c.env.DB.prepare(`
-      UPDATE daily_tasks 
-      SET is_top3 = 0, top3_order = NULL
-      WHERE user_id = ? AND task_date = ? AND top3_order = ?
-    `).bind(userId, task.task_date, order).run()
+    // If order is provided, validate it
+    if (order) {
+      if (order < 1 || order > 3) {
+        return errorResponse(c, 'Order must be between 1 and 3', 400)
+      }
+
+      // Check if the order is already taken
+      const existingTop3 = await c.env.DB.prepare(
+        'SELECT task_id FROM daily_tasks WHERE user_id = ? AND task_date = ? AND top3_order = ? AND is_top3 = 1'
+      ).bind(userId, task.task_date, order).first()
+
+      if (existingTop3 && existingTop3.task_id !== taskId) {
+        return errorResponse(c, `${order}순위는 이미 다른 항목이 사용 중입니다. 다른 순위를 선택해주세요.`, 409)
+      }
+    } else {
+      // Auto-assign to the first available slot (1, 2, or 3)
+      const existingTop3s = await c.env.DB.prepare(
+        'SELECT top3_order FROM daily_tasks WHERE user_id = ? AND task_date = ? AND is_top3 = 1 ORDER BY top3_order'
+      ).bind(userId, task.task_date).all()
+
+      const usedOrders = new Set(existingTop3s.results?.map(t => t.top3_order) || [])
+      
+      // Find first available slot
+      for (let i = 1; i <= 3; i++) {
+        if (!usedOrders.has(i)) {
+          order = i
+          break
+        }
+      }
+
+      if (!order) {
+        return errorResponse(c, 'TOP 3가 모두 차있습니다. 기존 항목을 삭제하거나 순서를 변경해주세요.', 400)
+      }
+    }
 
     // Set new TOP 3
     await c.env.DB.prepare(`
