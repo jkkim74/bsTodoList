@@ -18,20 +18,7 @@ reviews.post('/', async (c) => {
     const userId = c.get('userId') as number
     const body = await c.req.json<ReviewRequest>()
     
-    console.log('👤 User ID from auth:', userId, 'Type:', typeof userId)
     console.log('📝 Review request body:', JSON.stringify(body, null, 2))
-    
-    // Verify user exists
-    const userCheck = await c.env.DB.prepare(
-      'SELECT user_id, email FROM users WHERE user_id = ?'
-    ).bind(userId).first()
-    
-    console.log('🔍 User exists check:', userCheck ? 'YES' : 'NO', userCheck)
-    
-    if (!userCheck) {
-      console.error('❌ User not found in database:', userId)
-      return errorResponse(c, 'User not found', 404)
-    }
     
     const { 
       review_date, 

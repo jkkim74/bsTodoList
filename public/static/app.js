@@ -206,6 +206,38 @@ function renderMainPage() {
           <strong>${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 (${dayName}요일)</strong>
         </div>
         
+        <!-- Weekly Goals Mini Header -->
+        <div id="weekly-goals-mini" class="card mb-4 cursor-pointer hover:shadow-lg transition-shadow" onclick="toggleWeeklyGoals()">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <span class="text-2xl">🎯</span>
+              <div>
+                <div class="font-bold text-gray-800">이번 주 목표</div>
+                <div id="weekly-goals-summary" class="text-sm text-gray-600">로딩 중...</div>
+              </div>
+            </div>
+            <button id="weekly-goals-toggle-btn" class="text-gray-500 hover:text-gray-700">
+              <i class="fas fa-chevron-down"></i>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Weekly Goals Detail Section -->
+        <div id="weekly-goals-detail" class="card mb-6" style="display: none;">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold text-gray-800">
+              🎯 이번 주 목표
+            </h3>
+            <div class="text-sm text-gray-600" id="weekly-goals-date-range"></div>
+          </div>
+          
+          <div id="weekly-goals-list" class="space-y-4 mb-4"></div>
+          
+          <button onclick="openAddGoalModal()" class="btn btn-primary w-full">
+            <i class="fas fa-plus mr-2"></i>새 주간 목표 추가
+          </button>
+        </div>
+        
         <!-- STEP 1: 꺼내기 -->
         <div class="step-box fade-in">
           <div class="step-title">
@@ -340,6 +372,7 @@ async function loadDailyOverview() {
     loadEmotionEnergy()
     loadDailyReview()
     loadFreeNotes()
+    loadWeeklyGoals()
   } catch (error) {
     console.error('Load daily overview error:', error)
   }
@@ -1159,3 +1192,377 @@ async function deleteNote(noteId) {
     alert('메모 삭제 실패: ' + (error.response?.data?.error || error.message))
   }
 }
+
+// ==================== Weekly Goals Functions ====================
+
+let weeklyGoalsData = {
+  weekStartDate: '',
+  weekEndDate: '',
+  goals: []
+}
+
+// Toggle weekly goals section
+function toggleWeeklyGoals() {
+  const detail = document.getElementById('weekly-goals-detail')
+  const toggleBtn = document.getElementById('weekly-goals-toggle-btn')
+  const icon = toggleBtn.querySelector('i')
+  
+  if (detail.style.display === 'none') {
+    detail.style.display = 'block'
+    icon.className = 'fas fa-chevron-up'
+    localStorage.setItem('weeklyGoalsExpanded', 'true')
+  } else {
+    detail.style.display = 'none'
+    icon.className = 'fas fa-chevron-down'
+    localStorage.setItem('weeklyGoalsExpanded', 'false')
+  }
+}
+
+// Load weekly goals
+async function loadWeeklyGoals() {
+  try {
+    const response = await axios.get(`${API_BASE}/weekly-goals/current`)
+    weeklyGoalsData = response.data.data
+    
+    // Update date range
+    const dateRange = document.getElementById('weekly-goals-date-range')
+    if (dateRange) {
+      const start = new Date(weeklyGoalsData.weekStartDate)
+      const end = new Date(weeklyGoalsData.weekEndDate)
+      dateRange.textContent = `${start.getMonth() + 1}/${start.getDate()} ~ ${end.getMonth() + 1}/${end.getDate()}`
+    }
+    
+    // Update summary
+    updateWeeklyGoalsSummary()
+    
+    // Render goals list
+    renderWeeklyGoalsList()
+    
+    // Restore expanded state
+    const isExpanded = localStorage.getItem('weeklyGoalsExpanded')
+    if (isExpanded === 'true') {
+      const detail = document.getElementById('weekly-goals-detail')
+      const toggleBtn = document.getElementById('weekly-goals-toggle-btn')
+      const icon = toggleBtn.querySelector('i')
+      detail.style.display = 'block'
+      icon.className = 'fas fa-chevron-up'
+    }
+  } catch (error) {
+    console.error('Load weekly goals error:', error)
+    document.getElementById('weekly-goals-summary').textContent = '목표를 불러올 수 없습니다'
+  }
+}
+
+// Update summary
+function updateWeeklyGoalsSummary() {
+  const summary = document.getElementById('weekly-goals-summary')
+  const goals = weeklyGoalsData.goals || []
+  
+  if (goals.length === 0) {
+    summary.innerHTML = '<span class="text-gray-500">아직 주간 목표가 없습니다</span>'
+    return
+  }
+  
+  const completedCount = goals.filter(g => g.status === 'COMPLETED').length
+  const totalCount = goals.length
+  const avgProgress = Math.round(goals.reduce((sum, g) => sum + g.progress_rate, 0) / totalCount)
+  
+  const progressBar = generateProgressBar(avgProgress)
+  
+  summary.innerHTML = `
+    <div class="flex items-center space-x-2">
+      <span class="font-medium">${progressBar} ${avgProgress}%</span>
+      <span class="text-gray-500">•</span>
+      <span>${completedCount}/${totalCount} 완료</span>
+    </div>
+  `
+}
+
+// Generate progress bar
+function generateProgressBar(progress) {
+  const filled = Math.floor(progress / 10)
+  const empty = 10 - filled
+  return '█'.repeat(filled) + '░'.repeat(empty)
+}
+
+// Render weekly goals list
+function renderWeeklyGoalsList() {
+  const container = document.getElementById('weekly-goals-list')
+  const goals = weeklyGoalsData.goals || []
+  
+  if (goals.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-8 text-gray-500">
+        <i class="fas fa-flag text-4xl mb-3"></i>
+        <p>이번 주 목표를 설정해보세요!</p>
+        <p class="text-sm mt-2">최대 3개까지 설정할 수 있습니다.</p>
+      </div>
+    `
+    return
+  }
+  
+  container.innerHTML = goals.map(goal => `
+    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+      <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center space-x-2">
+          <span class="text-2xl">${goal.goal_order === 1 ? '1️⃣' : goal.goal_order === 2 ? '2️⃣' : '3️⃣'}</span>
+          <div>
+            <h4 class="font-bold text-gray-800">${goal.title}</h4>
+            ${goal.target_date ? `<p class="text-xs text-gray-500">목표일: ${goal.target_date}</p>` : ''}
+          </div>
+        </div>
+        <span class="px-2 py-1 text-xs font-medium rounded ${
+          goal.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 
+          goal.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' : 
+          'bg-blue-100 text-blue-800'
+        }">
+          ${goal.status === 'COMPLETED' ? '완료' : goal.status === 'CANCELLED' ? '취소' : '진행중'}
+        </span>
+      </div>
+      
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-sm text-gray-600">진행률</span>
+          <span class="text-sm font-bold">${goal.progress_rate}%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+          <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: ${goal.progress_rate}%"></div>
+        </div>
+      </div>
+      
+      <div class="flex space-x-2">
+        <button onclick="openUpdateProgressModal(${goal.goal_id}, ${goal.progress_rate})" class="flex-1 btn btn-sm btn-secondary">
+          <i class="fas fa-chart-line mr-1"></i>진행률 업데이트
+        </button>
+        <button onclick="deleteWeeklyGoal(${goal.goal_id})" class="btn btn-sm btn-danger">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+  `).join('')
+  
+  // Disable add button if 3 goals exist
+  const addButton = document.querySelector('button[onclick="openAddGoalModal()"]')
+  if (addButton) {
+    if (goals.length >= 3) {
+      addButton.disabled = true
+      addButton.classList.add('opacity-50', 'cursor-not-allowed')
+      addButton.innerHTML = '<i class="fas fa-check mr-2"></i>최대 3개 목표 설정 완료'
+    } else {
+      addButton.disabled = false
+      addButton.classList.remove('opacity-50', 'cursor-not-allowed')
+      addButton.innerHTML = '<i class="fas fa-plus mr-2"></i>새 주간 목표 추가'
+    }
+  }
+}
+
+// Open add goal modal
+function openAddGoalModal() {
+  if (weeklyGoalsData.goals && weeklyGoalsData.goals.length >= 3) {
+    alert('주간 목표는 최대 3개까지만 설정할 수 있습니다.')
+    return
+  }
+  
+  const nextOrder = (weeklyGoalsData.goals?.length || 0) + 1
+  
+  const modal = document.createElement('div')
+  modal.id = 'add-goal-modal'
+  modal.className = 'modal-overlay'
+  modal.innerHTML = `
+    <div class="modal-content max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold">새 주간 목표 추가</h3>
+        <button onclick="closeAddGoalModal()" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            우선순위: ${nextOrder}번째 목표
+          </label>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            목표 제목 *
+          </label>
+          <input 
+            type="text" 
+            id="goal-title" 
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="예: 프로젝트 A 완료하기"
+            maxlength="100"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            목표일 (선택)
+          </label>
+          <input 
+            type="date" 
+            id="goal-target-date" 
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            min="${weeklyGoalsData.weekStartDate}"
+            max="${weeklyGoalsData.weekEndDate}"
+          />
+        </div>
+        
+        <div class="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+          <i class="fas fa-info-circle mr-1"></i>
+          주간 목표는 이번 주 (${weeklyGoalsData.weekStartDate} ~ ${weeklyGoalsData.weekEndDate}) 동안 달성할 목표입니다.
+        </div>
+      </div>
+      
+      <div class="flex space-x-3 mt-6">
+        <button onclick="closeAddGoalModal()" class="flex-1 btn btn-secondary">
+          취소
+        </button>
+        <button onclick="submitAddGoal()" class="flex-1 btn btn-primary">
+          <i class="fas fa-plus mr-2"></i>추가
+        </button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  
+  // Focus on title input
+  setTimeout(() => {
+    document.getElementById('goal-title').focus()
+  }, 100)
+}
+
+function closeAddGoalModal() {
+  const modal = document.getElementById('add-goal-modal')
+  if (modal) modal.remove()
+}
+
+async function submitAddGoal() {
+  const title = document.getElementById('goal-title').value.trim()
+  const targetDate = document.getElementById('goal-target-date').value || null
+  
+  if (!title) {
+    alert('목표 제목을 입력해주세요')
+    return
+  }
+  
+  const nextOrder = (weeklyGoalsData.goals?.length || 0) + 1
+  
+  try {
+    await axios.post(`${API_BASE}/weekly-goals`, {
+      week_start_date: weeklyGoalsData.weekStartDate,
+      week_end_date: weeklyGoalsData.weekEndDate,
+      goal_order: nextOrder,
+      title: title,
+      target_date: targetDate
+    })
+    
+    closeAddGoalModal()
+    loadWeeklyGoals()
+  } catch (error) {
+    alert('목표 추가 실패: ' + (error.response?.data?.error || error.message))
+  }
+}
+
+// Open update progress modal
+function openUpdateProgressModal(goalId, currentProgress) {
+  const modal = document.createElement('div')
+  modal.id = 'update-progress-modal'
+  modal.className = 'modal-overlay'
+  modal.innerHTML = `
+    <div class="modal-content max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold">진행률 업데이트</h3>
+        <button onclick="closeUpdateProgressModal()" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            진행률: <span id="progress-value">${currentProgress}</span>%
+          </label>
+          <input 
+            type="range" 
+            id="progress-slider" 
+            min="0" 
+            max="100" 
+            step="5" 
+            value="${currentProgress}"
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            oninput="document.getElementById('progress-value').textContent = this.value; updateProgressPreview(this.value)"
+          />
+          <div class="flex justify-between text-xs text-gray-500 mt-1">
+            <span>0%</span>
+            <span>50%</span>
+            <span>100%</span>
+          </div>
+        </div>
+        
+        <div>
+          <div class="w-full bg-gray-200 rounded-full h-4">
+            <div id="progress-preview" class="bg-blue-500 h-4 rounded-full transition-all duration-300" style="width: ${currentProgress}%"></div>
+          </div>
+        </div>
+        
+        <div class="text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg">
+          <i class="fas fa-lightbulb mr-1"></i>
+          100% 달성 시 자동으로 '완료' 상태로 변경됩니다.
+        </div>
+      </div>
+      
+      <div class="flex space-x-3 mt-6">
+        <button onclick="closeUpdateProgressModal()" class="flex-1 btn btn-secondary">
+          취소
+        </button>
+        <button onclick="submitUpdateProgress(${goalId})" class="flex-1 btn btn-primary">
+          <i class="fas fa-save mr-2"></i>저장
+        </button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+}
+
+function closeUpdateProgressModal() {
+  const modal = document.getElementById('update-progress-modal')
+  if (modal) modal.remove()
+}
+
+function updateProgressPreview(value) {
+  const preview = document.getElementById('progress-preview')
+  if (preview) {
+    preview.style.width = value + '%'
+  }
+}
+
+async function submitUpdateProgress(goalId) {
+  const progress = parseInt(document.getElementById('progress-slider').value)
+  
+  try {
+    await axios.patch(`${API_BASE}/weekly-goals/${goalId}/progress`, {
+      progress_rate: progress
+    })
+    
+    closeUpdateProgressModal()
+    loadWeeklyGoals()
+  } catch (error) {
+    alert('진행률 업데이트 실패: ' + (error.response?.data?.error || error.message))
+  }
+}
+
+// Delete weekly goal
+async function deleteWeeklyGoal(goalId) {
+  if (!confirm('이 목표를 삭제하시겠습니까?')) return
+  
+  try {
+    await axios.delete(`${API_BASE}/weekly-goals/${goalId}`)
+    loadWeeklyGoals()
+  } catch (error) {
+    alert('목표 삭제 실패: ' + (error.response?.data?.error || error.message))
+  }
+}
+
