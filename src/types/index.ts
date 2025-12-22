@@ -42,14 +42,13 @@ export interface DailyTask {
 }
 
 // Review types
-export type EnergyLevel = 'VERY_GOOD' | 'GOOD' | 'NORMAL' | 'TIRED' | 'VERY_TIRED'
-
 export interface DailyReview {
   review_id: number
   user_id: number
   review_date: string
-  morning_energy: EnergyLevel | null
+  morning_energy: number | null  // 1-10
   current_mood: string | null
+  stress_level: number | null    // 1-10
   stress_factors: string | null
   well_done_1: string | null
   well_done_2: string | null
@@ -135,8 +134,9 @@ export interface TaskTop3Request {
 
 export interface ReviewRequest {
   review_date: string
-  morning_energy?: EnergyLevel
+  morning_energy?: number  // 1-10
   current_mood?: string
+  stress_level?: number    // 1-10
   stress_factors?: string
   well_done_1?: string
   well_done_2?: string
