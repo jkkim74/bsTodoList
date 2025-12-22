@@ -282,6 +282,24 @@ function renderMainPage() {
         </div>
         <div id="statistics" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 fade-in"></div>
         
+        <!-- Emotion & Energy Level -->
+        <div class="section-header fade-in">
+          😊 오늘의 기분과 에너지
+        </div>
+        <div id="emotion-energy" class="card fade-in mb-6"></div>
+        
+        <!-- Daily Review -->
+        <div class="section-header fade-in">
+          📝 하루 회고
+        </div>
+        <div id="daily-review" class="card fade-in mb-6"></div>
+        
+        <!-- Free Notes -->
+        <div class="section-header fade-in">
+          📔 자유 메모
+        </div>
+        <div id="free-notes" class="card fade-in mb-6"></div>
+        
         <!-- Footer Tips -->
         <div class="footer-note fade-in">
           <strong>💡 브레인 덤핑 TO_DO_LIST 사용 팁:</strong>
@@ -317,6 +335,11 @@ async function loadDailyOverview() {
     renderCategorizedLists(data)
     renderTop3List(data.top3Tasks)
     renderStatistics(data.statistics)
+    
+    // Load Phase 2 features
+    loadEmotionEnergy()
+    loadDailyReview()
+    loadFreeNotes()
   } catch (error) {
     console.error('Load daily overview error:', error)
   }
@@ -686,5 +709,452 @@ async function deleteTask(taskId) {
     loadDailyOverview()
   } catch (error) {
     alert('삭제 실패: ' + (error.response?.data?.error || error.message))
+  }
+}
+
+// ========================================
+// Phase 2: 감정/에너지, 회고, 자유 메모
+// ========================================
+
+// Load and render emotion & energy level
+async function loadEmotionEnergy() {
+  const container = document.getElementById('emotion-energy')
+  if (!container) return
+  
+  try {
+    const response = await axios.get(`${API_BASE}/reviews/${currentDate}`)
+    const review = response.data.data
+    
+    renderEmotionEnergy(review)
+  } catch (error) {
+    renderEmotionEnergy(null)
+  }
+}
+
+function renderEmotionEnergy(review) {
+  const container = document.getElementById('emotion-energy')
+  const currentMood = review?.current_mood || ''
+  const energyLevel = review?.morning_energy || 5
+  
+  container.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-3">
+          <i class="fas fa-smile mr-2"></i>오늘의 기분
+        </label>
+        <div class="flex gap-2 flex-wrap">
+          ${renderEmotionButtons(currentMood)}
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-3">
+          <i class="fas fa-battery-three-quarters mr-2"></i>에너지 레벨: <span id="energy-value">${energyLevel}</span>/10
+        </label>
+        <input type="range" min="1" max="10" value="${energyLevel}" 
+          class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          oninput="updateEnergyLevel(this.value)"
+          onchange="saveEmotionEnergy()">
+        <div class="flex justify-between text-xs text-gray-500 mt-1">
+          <span>낮음</span>
+          <span>보통</span>
+          <span>높음</span>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function renderEmotionButtons(currentMood) {
+  const emotions = [
+    { value: 'VERY_GOOD', emoji: '😊', label: '매우 좋음', color: 'bg-green-500' },
+    { value: 'GOOD', emoji: '🙂', label: '좋음', color: 'bg-blue-500' },
+    { value: 'NORMAL', emoji: '😐', label: '보통', color: 'bg-gray-500' },
+    { value: 'BAD', emoji: '😞', label: '나쁨', color: 'bg-orange-500' },
+    { value: 'VERY_BAD', emoji: '😢', label: '매우 나쁨', color: 'bg-red-500' }
+  ]
+  
+  return emotions.map(emotion => `
+    <button onclick="selectEmotion('${emotion.value}')" 
+      class="flex-1 min-w-[80px] py-3 px-2 rounded-lg border-2 transition-all ${
+        currentMood === emotion.value 
+          ? `${emotion.color} text-white border-transparent transform scale-105` 
+          : 'border-gray-300 hover:border-gray-400 bg-white'
+      }">
+      <div class="text-2xl mb-1">${emotion.emoji}</div>
+      <div class="text-xs font-medium">${emotion.label}</div>
+    </button>
+  `).join('')
+}
+
+let selectedEmotion = null
+let selectedEnergy = 5
+
+function selectEmotion(emotion) {
+  selectedEmotion = emotion
+  saveEmotionEnergy()
+}
+
+function updateEnergyLevel(value) {
+  document.getElementById('energy-value').textContent = value
+  selectedEnergy = parseInt(value)
+}
+
+async function saveEmotionEnergy() {
+  try {
+    await axios.post(`${API_BASE}/reviews`, {
+      review_date: currentDate,
+      current_mood: selectedEmotion,
+      morning_energy: selectedEnergy
+    })
+    loadEmotionEnergy()
+  } catch (error) {
+    console.error('Save emotion/energy error:', error)
+  }
+}
+
+// Load and render daily review
+async function loadDailyReview() {
+  const container = document.getElementById('daily-review')
+  if (!container) return
+  
+  try {
+    const response = await axios.get(`${API_BASE}/reviews/${currentDate}`)
+    const review = response.data.data
+    
+    renderDailyReview(review)
+  } catch (error) {
+    renderDailyReview(null)
+  }
+}
+
+function renderDailyReview(review) {
+  const container = document.getElementById('daily-review')
+  
+  if (review && (review.well_done_1 || review.well_done_2 || review.well_done_3 || review.improvement || review.gratitude)) {
+    container.innerHTML = `
+      <div class="space-y-4">
+        <div>
+          <h4 class="font-semibold text-gray-700 mb-2">
+            <i class="fas fa-star text-yellow-500 mr-2"></i>오늘 잘한 일 3가지
+          </h4>
+          <ol class="list-decimal list-inside space-y-1 text-gray-600">
+            ${review.well_done_1 ? `<li>${review.well_done_1}</li>` : ''}
+            ${review.well_done_2 ? `<li>${review.well_done_2}</li>` : ''}
+            ${review.well_done_3 ? `<li>${review.well_done_3}</li>` : ''}
+          </ol>
+        </div>
+        
+        ${review.improvement ? `
+          <div>
+            <h4 class="font-semibold text-gray-700 mb-2">
+              <i class="fas fa-lightbulb text-blue-500 mr-2"></i>개선할 점
+            </h4>
+            <p class="text-gray-600">${review.improvement}</p>
+          </div>
+        ` : ''}
+        
+        ${review.gratitude ? `
+          <div>
+            <h4 class="font-semibold text-gray-700 mb-2">
+              <i class="fas fa-heart text-pink-500 mr-2"></i>감사한 일
+            </h4>
+            <p class="text-gray-600">${review.gratitude}</p>
+          </div>
+        ` : ''}
+        
+        ${review.stress_factors ? `
+          <div>
+            <h4 class="font-semibold text-gray-700 mb-2">
+              <i class="fas fa-exclamation-triangle text-orange-500 mr-2"></i>스트레스 요인
+            </h4>
+            <p class="text-gray-600">${review.stress_factors}</p>
+          </div>
+        ` : ''}
+        
+        <button onclick="showReviewModal()" class="btn btn-secondary text-sm">
+          <i class="fas fa-edit mr-2"></i>회고 수정
+        </button>
+      </div>
+    `
+  } else {
+    container.innerHTML = `
+      <div class="text-center py-8">
+        <i class="fas fa-pen-fancy text-4xl text-gray-300 mb-4"></i>
+        <p class="text-gray-500 mb-4">하루를 돌아보고 회고를 작성해보세요</p>
+        <button onclick="showReviewModal()" class="btn btn-primary">
+          <i class="fas fa-plus mr-2"></i>회고 작성하기
+        </button>
+      </div>
+    `
+  }
+}
+
+function showReviewModal() {
+  axios.get(`${API_BASE}/reviews/${currentDate}`)
+    .then(response => {
+      const review = response.data.data || {}
+      openReviewModal(review)
+    })
+    .catch(() => {
+      openReviewModal({})
+    })
+}
+
+function openReviewModal(review) {
+  const modal = document.createElement('div')
+  modal.id = 'review-modal'
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'
+  modal.innerHTML = `
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 fade-in max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold text-gray-800">
+            <i class="fas fa-pen-fancy text-purple-500 mr-2"></i>
+            하루 회고
+          </h3>
+          <button onclick="closeReviewModal()" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-star text-yellow-500 mr-1"></i>
+              오늘 잘한 일 1
+            </label>
+            <input type="text" id="well-done-1" value="${review.well_done_1 || ''}"
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+              placeholder="오늘 가장 잘한 일">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-star text-yellow-500 mr-1"></i>
+              오늘 잘한 일 2
+            </label>
+            <input type="text" id="well-done-2" value="${review.well_done_2 || ''}"
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+              placeholder="두 번째로 잘한 일">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-star text-yellow-500 mr-1"></i>
+              오늘 잘한 일 3
+            </label>
+            <input type="text" id="well-done-3" value="${review.well_done_3 || ''}"
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+              placeholder="세 번째로 잘한 일">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-lightbulb text-blue-500 mr-1"></i>
+              개선할 점
+            </label>
+            <textarea id="improvement" rows="3"
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+              placeholder="내일 더 나아지기 위해 개선할 점">${review.improvement || ''}</textarea>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-heart text-pink-500 mr-1"></i>
+              감사한 일
+            </label>
+            <textarea id="gratitude" rows="3"
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+              placeholder="오늘 감사했던 일이나 사람">${review.gratitude || ''}</textarea>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-exclamation-triangle text-orange-500 mr-1"></i>
+              스트레스 요인 (선택)
+            </label>
+            <textarea id="stress-factors" rows="2"
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+              placeholder="오늘 느낀 스트레스나 걱정거리">${review.stress_factors || ''}</textarea>
+          </div>
+        </div>
+        
+        <div class="mt-6 flex gap-3">
+          <button onclick="closeReviewModal()" class="flex-1 btn btn-secondary">
+            <i class="fas fa-times mr-2"></i>취소
+          </button>
+          <button onclick="submitReview()" class="flex-1 btn btn-primary">
+            <i class="fas fa-save mr-2"></i>저장
+          </button>
+        </div>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+}
+
+function closeReviewModal() {
+  const modal = document.getElementById('review-modal')
+  if (modal) modal.remove()
+}
+
+async function submitReview() {
+  const wellDone1 = document.getElementById('well-done-1').value.trim()
+  const wellDone2 = document.getElementById('well-done-2').value.trim()
+  const wellDone3 = document.getElementById('well-done-3').value.trim()
+  const improvement = document.getElementById('improvement').value.trim()
+  const gratitude = document.getElementById('gratitude').value.trim()
+  const stressFactors = document.getElementById('stress-factors').value.trim()
+  
+  if (!wellDone1 && !wellDone2 && !wellDone3 && !improvement && !gratitude) {
+    alert('최소 하나의 항목을 입력해주세요')
+    return
+  }
+  
+  try {
+    await axios.post(`${API_BASE}/reviews`, {
+      review_date: currentDate,
+      well_done_1: wellDone1,
+      well_done_2: wellDone2,
+      well_done_3: wellDone3,
+      improvement: improvement,
+      gratitude: gratitude,
+      stress_factors: stressFactors
+    })
+    closeReviewModal()
+    loadDailyReview()
+  } catch (error) {
+    alert('회고 저장 실패: ' + (error.response?.data?.error || error.message))
+  }
+}
+
+// Load and render free notes
+async function loadFreeNotes() {
+  const container = document.getElementById('free-notes')
+  if (!container) return
+  
+  try {
+    const response = await axios.get(`${API_BASE}/notes/${currentDate}`)
+    const note = response.data.data
+    
+    renderFreeNotes(note)
+  } catch (error) {
+    renderFreeNotes(null)
+  }
+}
+
+function renderFreeNotes(note) {
+  const container = document.getElementById('free-notes')
+  
+  if (note && note.content) {
+    container.innerHTML = `
+      <div class="space-y-4">
+        <div class="whitespace-pre-wrap text-gray-700 bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
+          ${note.content}
+        </div>
+        <div class="flex gap-2">
+          <button onclick="showNoteModal()" class="btn btn-secondary text-sm">
+            <i class="fas fa-edit mr-2"></i>수정
+          </button>
+          <button onclick="deleteNote(${note.note_id})" class="btn btn-secondary text-sm text-red-600">
+            <i class="fas fa-trash mr-2"></i>삭제
+          </button>
+        </div>
+      </div>
+    `
+  } else {
+    container.innerHTML = `
+      <div class="text-center py-8">
+        <i class="fas fa-sticky-note text-4xl text-gray-300 mb-4"></i>
+        <p class="text-gray-500 mb-4">자유롭게 메모를 작성해보세요</p>
+        <button onclick="showNoteModal()" class="btn btn-primary">
+          <i class="fas fa-plus mr-2"></i>메모 작성하기
+        </button>
+      </div>
+    `
+  }
+}
+
+function showNoteModal() {
+  axios.get(`${API_BASE}/notes/${currentDate}`)
+    .then(response => {
+      const note = response.data.data || {}
+      openNoteModal(note)
+    })
+    .catch(() => {
+      openNoteModal({})
+    })
+}
+
+function openNoteModal(note) {
+  const modal = document.createElement('div')
+  modal.id = 'note-modal'
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'
+  modal.innerHTML = `
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 fade-in">
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold text-gray-800">
+            <i class="fas fa-sticky-note text-yellow-500 mr-2"></i>
+            자유 메모
+          </h3>
+          <button onclick="closeNoteModal()" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        
+        <div>
+          <textarea id="note-content" rows="10"
+            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary resize-vertical"
+            placeholder="메모할 내용을 자유롭게 작성하세요...&#10;&#10;💡 아이디어, 생각, 기록하고 싶은 내용 등 무엇이든 좋습니다.">${note.content || ''}</textarea>
+        </div>
+        
+        <div class="mt-6 flex gap-3">
+          <button onclick="closeNoteModal()" class="flex-1 btn btn-secondary">
+            <i class="fas fa-times mr-2"></i>취소
+          </button>
+          <button onclick="submitNote()" class="flex-1 btn btn-primary">
+            <i class="fas fa-save mr-2"></i>저장
+          </button>
+        </div>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+}
+
+function closeNoteModal() {
+  const modal = document.getElementById('note-modal')
+  if (modal) modal.remove()
+}
+
+async function submitNote() {
+  const content = document.getElementById('note-content').value.trim()
+  
+  if (!content) {
+    alert('메모 내용을 입력해주세요')
+    return
+  }
+  
+  try {
+    await axios.post(`${API_BASE}/notes`, {
+      note_date: currentDate,
+      content: content
+    })
+    closeNoteModal()
+    loadFreeNotes()
+  } catch (error) {
+    alert('메모 저장 실패: ' + (error.response?.data?.error || error.message))
+  }
+}
+
+async function deleteNote(noteId) {
+  if (!confirm('메모를 삭제하시겠습니까?')) return
+  
+  try {
+    await axios.delete(`${API_BASE}/notes/${noteId}`)
+    loadFreeNotes()
+  } catch (error) {
+    alert('메모 삭제 실패: ' + (error.response?.data?.error || error.message))
   }
 }

@@ -158,6 +158,11 @@ export interface LetGoRequest {
   content: string
 }
 
+export interface FreeNoteRequest {
+  note_date: string
+  content: string
+}
+
 // Response types
 export interface ApiResponse<T = any> {
   success: boolean

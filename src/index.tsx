@@ -7,6 +7,7 @@ import tasks from './routes/tasks'
 import reviews from './routes/reviews'
 import goals from './routes/goals'
 import letgo from './routes/letgo'
+import notes from './routes/notes'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -29,6 +30,7 @@ app.route('/api/tasks', tasks)
 app.route('/api/reviews', reviews)
 app.route('/api/weekly-goals', goals)
 app.route('/api/let-go', letgo)
+app.route('/api/notes', notes)
 
 // Health check
 app.get('/api/health', (c) => {
