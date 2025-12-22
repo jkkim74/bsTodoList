@@ -804,7 +804,8 @@ async function saveEmotionEnergy() {
     await axios.post(`${API_BASE}/reviews`, {
       review_date: currentDate,
       current_mood: selectedEmotion,
-      morning_energy: selectedEnergy
+      morning_energy: selectedEnergy,
+      stress_level: null  // 스트레스 레벨은 나중에 추가 예정
     })
     loadEmotionEnergy()
   } catch (error) {
