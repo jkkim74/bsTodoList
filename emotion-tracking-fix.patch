@@ -1,0 +1,127 @@
+diff --git a/migrations/0001_initial_schema.sql b/migrations/0001_initial_schema.sql
+index 87e4b50..900ef2e 100644
+--- a/migrations/0001_initial_schema.sql
++++ b/migrations/0001_initial_schema.sql
+@@ -36,8 +36,9 @@ CREATE TABLE IF NOT EXISTS daily_reviews (
+     review_id INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id INTEGER NOT NULL,
+     review_date DATE NOT NULL,
+-    morning_energy TEXT CHECK (morning_energy IN ('VERY_GOOD', 'GOOD', 'NORMAL', 'TIRED', 'VERY_TIRED')),
++    morning_energy INTEGER CHECK (morning_energy BETWEEN 1 AND 10),
+     current_mood TEXT,
++    stress_level INTEGER CHECK (stress_level BETWEEN 1 AND 10),
+     stress_factors TEXT,
+     well_done_1 TEXT,
+     well_done_2 TEXT,
+diff --git a/public/static/app.js b/public/static/app.js
+index 2b9053a..4afee1d 100644
+--- a/public/static/app.js
++++ b/public/static/app.js
+@@ -804,7 +804,8 @@ async function saveEmotionEnergy() {
+     await axios.post(`${API_BASE}/reviews`, {
+       review_date: currentDate,
+       current_mood: selectedEmotion,
+-      morning_energy: selectedEnergy
++      morning_energy: selectedEnergy,
++      stress_level: null  // 스트레스 레벨은 나중에 추가 예정
+     })
+     loadEmotionEnergy()
+   } catch (error) {
+diff --git a/src/routes/reviews.ts b/src/routes/reviews.ts
+index 2999e3c..4ddfdda 100644
+--- a/src/routes/reviews.ts
++++ b/src/routes/reviews.ts
+@@ -15,7 +15,8 @@ reviews.post('/', async (c) => {
+     const { 
+       review_date, 
+       morning_energy, 
+-      current_mood, 
++      current_mood,
++      stress_level,
+       stress_factors,
+       well_done_1, 
+       well_done_2, 
+@@ -37,14 +38,21 @@ reviews.post('/', async (c) => {
+       // Update existing review
+       await c.env.DB.prepare(`
+         UPDATE daily_reviews 
+-        SET morning_energy = ?, current_mood = ?, stress_factors = ?,
++        SET morning_energy = ?, current_mood = ?, stress_level = ?, stress_factors = ?,
+             well_done_1 = ?, well_done_2 = ?, well_done_3 = ?,
+             improvement = ?, gratitude = ?, updated_at = ?
+         WHERE review_id = ?
+       `).bind(
+-        morning_energy, current_mood, stress_factors,
+-        well_done_1, well_done_2, well_done_3,
+-        improvement, gratitude, getCurrentDateTime(),
++        morning_energy ?? null, 
++        current_mood ?? null, 
++        stress_level ?? null, 
++        stress_factors ?? null,
++        well_done_1 ?? null, 
++        well_done_2 ?? null, 
++        well_done_3 ?? null,
++        improvement ?? null, 
++        gratitude ?? null, 
++        getCurrentDateTime(),
+         existingReview.review_id
+       ).run()
+ 
+@@ -57,12 +65,21 @@ reviews.post('/', async (c) => {
+       // Create new review
+       const result = await c.env.DB.prepare(`
+         INSERT INTO daily_reviews (
+-          user_id, review_date, morning_energy, current_mood, stress_factors,
++          user_id, review_date, morning_energy, current_mood, stress_level, stress_factors,
+           well_done_1, well_done_2, well_done_3, improvement, gratitude
+-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
++        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       `).bind(
+-        userId, review_date, morning_energy, current_mood, stress_factors,
+-        well_done_1, well_done_2, well_done_3, improvement, gratitude
++        userId, 
++        review_date, 
++        morning_energy ?? null, 
++        current_mood ?? null, 
++        stress_level ?? null, 
++        stress_factors ?? null,
++        well_done_1 ?? null, 
++        well_done_2 ?? null, 
++        well_done_3 ?? null, 
++        improvement ?? null, 
++        gratitude ?? null
+       ).run()
+ 
+       const review = await c.env.DB.prepare(
+diff --git a/src/types/index.ts b/src/types/index.ts
+index 256eea9..8aa6313 100644
+--- a/src/types/index.ts
++++ b/src/types/index.ts
+@@ -42,14 +42,13 @@ export interface DailyTask {
+ }
+ 
+ // Review types
+-export type EnergyLevel = 'VERY_GOOD' | 'GOOD' | 'NORMAL' | 'TIRED' | 'VERY_TIRED'
+-
+ export interface DailyReview {
+   review_id: number
+   user_id: number
+   review_date: string
+-  morning_energy: EnergyLevel | null
++  morning_energy: number | null  // 1-10
+   current_mood: string | null
++  stress_level: number | null    // 1-10
+   stress_factors: string | null
+   well_done_1: string | null
+   well_done_2: string | null
+@@ -135,8 +134,9 @@ export interface TaskTop3Request {
+ 
+ export interface ReviewRequest {
+   review_date: string
+-  morning_energy?: EnergyLevel
++  morning_energy?: number  // 1-10
+   current_mood?: string
++  stress_level?: number    // 1-10
+   stress_factors?: string
+   well_done_1?: string
+   well_done_2?: string
