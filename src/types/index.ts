@@ -36,6 +36,7 @@ export interface DailyTask {
   top3_order: number | null
   action_detail: string | null
   completed_at: string | null
+  due_date: string | null  // 🆕 추가
   time_slot: TimeSlot | null
   created_at: string
   updated_at: string
@@ -115,10 +116,13 @@ export interface TaskCreateRequest {
 }
 
 export interface TaskUpdateRequest {
+  title?: string  // 🆕 추가
+  description?: string
   priority?: TaskPriority
   estimated_time?: string
-  description?: string
   status?: TaskStatus
+  time_slot?: TimeSlot  // 🆕 추가
+  due_date?: string  // 🆕 추가
 }
 
 export interface TaskCategorizeRequest {
@@ -198,4 +202,47 @@ export interface JWTPayload {
   userId: number
   email: string
   exp: number
+}
+
+// 🆕 Incomplete tasks grouped response
+export interface IncompleteTasksResponse {
+  overdue: DailyTask[]
+  today: DailyTask[]
+  upcoming: DailyTask[]
+  no_due_date: DailyTask[]
+}
+
+// 🆕 Daily statistics
+export interface DailyStats {
+  task_date: string
+  total_tasks: number
+  completed_tasks: number
+  top3_tasks: number
+  top3_completed: number
+  completion_rate: number
+}
+
+// 🆕 Weekly statistics
+export interface WeeklyStats {
+  total_tasks: number
+  completed_tasks: number
+  completion_rate: number
+  top3_tasks: number
+  top3_completed: number
+}
+
+// 🆕 Monthly statistics
+export interface MonthlyStats {
+  summary: {
+    working_days: number
+    total_tasks: number
+    completed_tasks: number
+    avg_completion_rate: number
+    top3_tasks: number
+    top3_completed: number
+  }
+  daily_trend: Array<{
+    task_date: string
+    completion_rate: number
+  }>
 }

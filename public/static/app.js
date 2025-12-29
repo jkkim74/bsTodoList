@@ -453,11 +453,24 @@ function renderTaskList(elementId, tasks) {
         <div class="flex-1">
           <div class="font-medium text-gray-800 text-sm">${task.title}</div>
           ${task.description ? `<div class="text-xs text-gray-600 mt-1">${task.description}</div>` : ''}
+          ${task.due_date ? `
+            <div class="text-xs text-gray-500 mt-1">
+              <i class="fas fa-calendar-check text-orange-500 mr-1"></i>
+              마감: ${formatDateKorean(task.due_date)}
+              ${getDaysUntilDue(task.due_date)}
+            </div>
+          ` : ''}
         </div>
-        <button onclick="deleteTask(${task.task_id})" 
-          class="text-gray-400 hover:text-red-500 transition-colors">
-          <i class="fas fa-times text-xs"></i>
-        </button>
+        <div class="flex gap-1">
+          <button onclick="openEditTaskModal(${task.task_id})" 
+            class="text-gray-400 hover:text-blue-500 transition-colors" title="수정">
+            <i class="fas fa-edit text-sm"></i>
+          </button>
+          <button onclick="deleteTask(${task.task_id})" 
+            class="text-gray-400 hover:text-red-500 transition-colors" title="삭제">
+            <i class="fas fa-times text-sm"></i>
+          </button>
+        </div>
       </div>
       ${task.estimated_time ? `
         <div class="text-xs text-gray-600 mb-2">
@@ -1587,3 +1600,201 @@ async function deleteWeeklyGoal(goalId) {
   }
 }
 
+// ==================== Task Edit Modal ====================
+
+// Helper: Format date to Korean
+function formatDateKorean(dateStr) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${month}월 ${day}일`
+}
+
+// Helper: Calculate days until due date
+function getDaysUntilDue(dueDate) {
+  if (!dueDate) return ''
+  const today = new Date(currentDate)
+  const due = new Date(dueDate)
+  const diffTime = due - today
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (diffDays < 0) {
+    return `<span class="text-red-600 font-semibold">🔴 ${Math.abs(diffDays)}일 지연</span>`
+  } else if (diffDays === 0) {
+    return `<span class="text-orange-600 font-semibold">⚠️ 오늘 마감</span>`
+  } else if (diffDays <= 3) {
+    return `<span class="text-orange-500">⏰ ${diffDays}일 남음</span>`
+  } else {
+    return `<span class="text-gray-500">${diffDays}일 남음</span>`
+  }
+}
+
+// Open edit task modal
+async function openEditTaskModal(taskId) {
+  try {
+    // Find task from current data
+    const allTasks = [
+      ...dailyOverviewData.brainDumpTasks,
+      ...dailyOverviewData.urgentImportantTasks,
+      ...dailyOverviewData.importantTasks,
+      ...dailyOverviewData.laterTasks
+    ]
+    const task = allTasks.find(t => t.task_id === taskId)
+    
+    if (!task) {
+      alert('작업을 찾을 수 없습니다')
+      return
+    }
+    
+    const modal = document.createElement('div')
+    modal.id = 'edit-task-modal'
+    modal.className = 'modal-overlay'
+    modal.innerHTML = `
+      <div class="modal-content max-w-lg">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-800">
+              <i class="fas fa-edit text-blue-500 mr-2"></i>작업 수정
+            </h3>
+            <button onclick="closeEditTaskModal()" class="text-gray-400 hover:text-gray-600">
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+          
+          <div class="space-y-4">
+            <!-- 제목 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <i class="fas fa-heading text-blue-500 mr-1"></i>제목 *
+              </label>
+              <input 
+                type="text" 
+                id="edit-task-title" 
+                value="${task.title.replace(/"/g, '&quot;')}"
+                class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                placeholder="작업 제목"
+              />
+            </div>
+            
+            <!-- 설명 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <i class="fas fa-align-left text-green-500 mr-1"></i>설명
+              </label>
+              <textarea 
+                id="edit-task-description" 
+                rows="3"
+                class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                placeholder="작업 설명 (선택)"
+              >${task.description || ''}</textarea>
+            </div>
+            
+            <!-- 우선순위 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <i class="fas fa-flag text-red-500 mr-1"></i>우선순위 *
+              </label>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 ${task.priority === 'URGENT_IMPORTANT' ? 'border-red-500 bg-red-50' : 'border-gray-300'}">
+                  <input type="radio" name="edit-priority" value="URGENT_IMPORTANT" ${task.priority === 'URGENT_IMPORTANT' ? 'checked' : ''} class="mr-2">
+                  <span class="text-sm font-medium">🔴 긴급·중요</span>
+                </label>
+                <label class="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 ${task.priority === 'IMPORTANT' ? 'border-yellow-500 bg-yellow-50' : 'border-gray-300'}">
+                  <input type="radio" name="edit-priority" value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'checked' : ''} class="mr-2">
+                  <span class="text-sm font-medium">🟡 중요</span>
+                </label>
+                <label class="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 ${task.priority === 'LATER' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}">
+                  <input type="radio" name="edit-priority" value="LATER" ${task.priority === 'LATER' ? 'checked' : ''} class="mr-2">
+                  <span class="text-sm font-medium">🔵 나중에</span>
+                </label>
+                <label class="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50 ${task.priority === 'LET_GO' ? 'border-gray-500 bg-gray-50' : 'border-gray-300'}">
+                  <input type="radio" name="edit-priority" value="LET_GO" ${task.priority === 'LET_GO' ? 'checked' : ''} class="mr-2">
+                  <span class="text-sm font-medium">⚪ 내려놓기</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- 시간대 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <i class="fas fa-clock text-purple-500 mr-1"></i>시간대 (선택)
+              </label>
+              <select id="edit-task-timeslot" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+                <option value="">선택 안함</option>
+                <option value="MORNING" ${task.time_slot === 'MORNING' ? 'selected' : ''}>🌅 아침 (06:00-09:00)</option>
+                <option value="AFTERNOON" ${task.time_slot === 'AFTERNOON' ? 'selected' : ''}>🌤️ 오후 (12:00-18:00)</option>
+                <option value="EVENING" ${task.time_slot === 'EVENING' ? 'selected' : ''}>🌙 저녁 (18:00-24:00)</option>
+              </select>
+            </div>
+            
+            <!-- 마감일 -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                <i class="fas fa-calendar-check text-orange-500 mr-1"></i>마감일 (선택)
+              </label>
+              <input 
+                type="date" 
+                id="edit-task-duedate" 
+                value="${task.due_date || ''}"
+                class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              />
+              <p class="text-xs text-gray-500 mt-1">마감일을 설정하면 미완료 항목 추적에 도움이 됩니다</p>
+            </div>
+          </div>
+          
+          <div class="flex space-x-3 mt-6">
+            <button onclick="closeEditTaskModal()" class="flex-1 btn btn-secondary">
+              취소
+            </button>
+            <button onclick="submitTaskUpdate(${taskId})" class="flex-1 btn btn-primary">
+              <i class="fas fa-save mr-2"></i>저장
+            </button>
+          </div>
+        </div>
+      </div>
+    `
+    document.body.appendChild(modal)
+  } catch (error) {
+    console.error('Open edit modal error:', error)
+    alert('모달 열기 실패')
+  }
+}
+
+async function submitTaskUpdate(taskId) {
+  const title = document.getElementById('edit-task-title').value.trim()
+  const description = document.getElementById('edit-task-description').value.trim()
+  const priority = document.querySelector('input[name="edit-priority"]:checked')?.value
+  const time_slot = document.getElementById('edit-task-timeslot').value || null
+  const due_date = document.getElementById('edit-task-duedate').value || null
+  
+  if (!title) {
+    alert('제목을 입력해주세요')
+    return
+  }
+  
+  if (!priority) {
+    alert('우선순위를 선택해주세요')
+    return
+  }
+  
+  try {
+    await axios.put(`${API_BASE}/tasks/${taskId}`, {
+      title,
+      description: description || null,
+      priority,
+      time_slot,
+      due_date
+    })
+    
+    closeEditTaskModal()
+    loadDailyOverview()
+    alert('✅ 작업이 수정되었습니다')
+  } catch (error) {
+    alert('작업 수정 실패: ' + (error.response?.data?.error || error.message))
+  }
+}
+
+function closeEditTaskModal() {
+  document.getElementById('edit-task-modal')?.remove()
+}
