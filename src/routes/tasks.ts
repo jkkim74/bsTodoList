@@ -3,9 +3,11 @@ import type {
   Env, 
   DailyTask, 
   TaskCreateRequest, 
+  TaskUpdateRequest,
   TaskCategorizeRequest,
   TaskTop3Request,
-  DailyOverviewResponse 
+  DailyOverviewResponse,
+  IncompleteTasksResponse
 } from '../types'
 import { authMiddleware } from '../middleware/auth'
 import { successResponse, errorResponse, getCurrentDate, getCurrentDateTime } from '../utils/response'
@@ -303,6 +305,10 @@ tasks.put('/:taskId', async (c) => {
       updates.push('description = ?')
       values.push(body.description)
     }
+    if (body.priority !== undefined) {
+      updates.push('priority = ?')
+      values.push(body.priority)
+    }
     if (body.estimated_time !== undefined) {
       updates.push('estimated_time = ?')
       values.push(body.estimated_time)
@@ -313,7 +319,11 @@ tasks.put('/:taskId', async (c) => {
     }
     if (body.time_slot !== undefined) {
       updates.push('time_slot = ?')
-      values.push(body.time_slot)
+      values.push(body.time_slot || null)
+    }
+    if (body.due_date !== undefined) {
+      updates.push('due_date = ?')
+      values.push(body.due_date || null)
     }
 
     if (updates.length === 0) {
@@ -335,6 +345,53 @@ tasks.put('/:taskId', async (c) => {
     return successResponse(c, updatedTask, '수정되었습니다.')
   } catch (error) {
     console.error('Update task error:', error)
+    return errorResponse(c, 'Internal server error', 500)
+  }
+})
+
+// Get incomplete tasks grouped by due date
+tasks.get('/incomplete', async (c) => {
+  try {
+    const userId = c.get('userId') as number
+    
+    const incompleteTasks = await c.env.DB.prepare(`
+      SELECT * FROM daily_tasks
+      WHERE user_id = ? AND status != 'COMPLETED'
+      ORDER BY 
+        CASE 
+          WHEN due_date IS NULL THEN 2
+          WHEN due_date < date('now') THEN 0
+          WHEN due_date = date('now') THEN 1
+          ELSE 3
+        END,
+        due_date ASC,
+        created_at DESC
+    `).bind(userId).all()
+    
+    // Group by due date status
+    const today = getCurrentDate()
+    const grouped: any = {
+      overdue: [],
+      today: [],
+      upcoming: [],
+      no_due_date: []
+    }
+    
+    incompleteTasks.results.forEach((task: any) => {
+      if (!task.due_date) {
+        grouped.no_due_date.push(task)
+      } else if (task.due_date < today) {
+        grouped.overdue.push(task)
+      } else if (task.due_date === today) {
+        grouped.today.push(task)
+      } else {
+        grouped.upcoming.push(task)
+      }
+    })
+    
+    return successResponse(c, grouped)
+  } catch (error) {
+    console.error('Get incomplete tasks error:', error)
     return errorResponse(c, 'Internal server error', 500)
   }
 })
