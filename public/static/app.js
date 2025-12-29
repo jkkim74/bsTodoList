@@ -4,6 +4,57 @@ let currentUser = null
 let currentDate = new Date().toISOString().split('T')[0]
 let dailyOverviewData = null  // 🆕 전역 데이터 캐시
 
+// Toast Notification System
+function showToast(message, type = 'success', duration = 3000) {
+  // Create container if not exists
+  let container = document.getElementById('toast-container')
+  if (!container) {
+    container = document.createElement('div')
+    container.id = 'toast-container'
+    container.className = 'toast-container'
+    document.body.appendChild(container)
+  }
+
+  // Create toast element
+  const toast = document.createElement('div')
+  toast.className = `toast ${type}`
+  
+  // Icon mapping
+  const icons = {
+    success: '✅',
+    error: '❌',
+    warning: '⚠️',
+    info: 'ℹ️'
+  }
+  
+  // Title mapping
+  const titles = {
+    success: '완료',
+    error: '오류',
+    warning: '경고',
+    info: '알림'
+  }
+  
+  toast.innerHTML = `
+    <div class="toast-icon">${icons[type] || icons.success}</div>
+    <div class="toast-content">
+      <div class="toast-title">${titles[type] || titles.success}</div>
+      <div class="toast-message">${message}</div>
+    </div>
+    <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+  `
+  
+  container.appendChild(toast)
+  
+  // Auto remove after duration
+  setTimeout(() => {
+    toast.classList.add('fade-out')
+    setTimeout(() => toast.remove(), 300)
+  }, duration)
+  
+  return toast
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   loadAuthState()
@@ -613,7 +664,7 @@ async function addBrainDumpTask() {
     input.value = ''
     loadDailyOverview()
   } catch (error) {
-    alert('할 일 추가 실패: ' + (error.response?.data?.error || error.message))
+    showToast('할 일 추가 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -624,7 +675,7 @@ async function categorizeTask(taskId, priority) {
     await axios.patch(`${API_BASE}/tasks/${taskId}/categorize`, { priority })
     loadDailyOverview()
   } catch (error) {
-    alert('분류 실패: ' + (error.response?.data?.error || error.message))
+    showToast('분류 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -722,7 +773,7 @@ async function submitTop3(taskId) {
   const timeSlot = document.getElementById('top3-timeslot').value || null
   
   if (!actionDetail) {
-    alert('구체적인 행동 계획을 입력해주세요')
+    showToast('구체적인 행동 계획을 입력해주세요', 'warning')
     return
   }
   
@@ -743,7 +794,7 @@ async function setTop3TaskWithTimeSlot(taskId, order, actionDetail, timeSlot = n
     })
     loadDailyOverview()
   } catch (error) {
-    alert('TOP 3 설정 실패: ' + (error.response?.data?.error || error.message))
+    showToast('TOP 3 설정 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -752,7 +803,7 @@ async function completeTask(taskId) {
     await axios.patch(`${API_BASE}/tasks/${taskId}/complete`)
     loadDailyOverview()
   } catch (error) {
-    alert('완료 처리 실패: ' + (error.response?.data?.error || error.message))
+    showToast('완료 처리 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -761,7 +812,7 @@ async function uncompleteTask(taskId) {
     await axios.put(`${API_BASE}/tasks/${taskId}`, { status: 'IN_PROGRESS' })
     loadDailyOverview()
   } catch (error) {
-    alert('완료 취소 실패: ' + (error.response?.data?.error || error.message))
+    showToast('완료 취소 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -772,7 +823,7 @@ async function deleteTask(taskId) {
     await axios.delete(`${API_BASE}/tasks/${taskId}`)
     loadDailyOverview()
   } catch (error) {
-    alert('삭제 실패: ' + (error.response?.data?.error || error.message))
+    showToast('삭제 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -1072,7 +1123,7 @@ async function submitReview() {
   const stressFactors = document.getElementById('stress-factors').value.trim()
   
   if (!wellDone1 && !wellDone2 && !wellDone3 && !improvement && !gratitude) {
-    alert('최소 하나의 항목을 입력해주세요')
+    showToast('최소 하나의 항목을 입력해주세요', 'warning')
     return
   }
   
@@ -1089,7 +1140,7 @@ async function submitReview() {
     closeReviewModal()
     loadDailyReview()
   } catch (error) {
-    alert('회고 저장 실패: ' + (error.response?.data?.error || error.message))
+    showToast('회고 저장 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -1197,7 +1248,7 @@ async function submitNote() {
   const content = document.getElementById('note-content').value.trim()
   
   if (!content) {
-    alert('메모 내용을 입력해주세요')
+    showToast('메모 내용을 입력해주세요', 'warning')
     return
   }
   
@@ -1209,7 +1260,7 @@ async function submitNote() {
     closeNoteModal()
     loadFreeNotes()
   } catch (error) {
-    alert('메모 저장 실패: ' + (error.response?.data?.error || error.message))
+    showToast('메모 저장 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -1220,7 +1271,7 @@ async function deleteNote(noteId) {
     await axios.delete(`${API_BASE}/notes/${noteId}`)
     loadFreeNotes()
   } catch (error) {
-    alert('메모 삭제 실패: ' + (error.response?.data?.error || error.message))
+    showToast('메모 삭제 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -1390,7 +1441,7 @@ function renderWeeklyGoalsList() {
 // Open add goal modal
 function openAddGoalModal() {
   if (weeklyGoalsData.goals && weeklyGoalsData.goals.length >= 3) {
-    alert('주간 목표는 최대 3개까지만 설정할 수 있습니다.')
+    showToast('주간 목표는 최대 3개까지만 설정할 수 있습니다', 'warning')
     return
   }
   
@@ -1482,7 +1533,7 @@ async function submitAddGoal() {
   const targetDate = document.getElementById('goal-target-date').value || null
   
   if (!title) {
-    alert('목표 제목을 입력해주세요')
+    showToast('목표 제목을 입력해주세요', 'warning')
     return
   }
   
@@ -1500,7 +1551,7 @@ async function submitAddGoal() {
     closeAddGoalModal()
     loadWeeklyGoals()
   } catch (error) {
-    alert('목표 추가 실패: ' + (error.response?.data?.error || error.message))
+    showToast('목표 추가 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -1588,7 +1639,7 @@ async function submitUpdateProgress(goalId) {
     closeUpdateProgressModal()
     loadWeeklyGoals()
   } catch (error) {
-    alert('진행률 업데이트 실패: ' + (error.response?.data?.error || error.message))
+    showToast('진행률 업데이트 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -1600,7 +1651,7 @@ async function deleteWeeklyGoal(goalId) {
     await axios.delete(`${API_BASE}/weekly-goals/${goalId}`)
     loadWeeklyGoals()
   } catch (error) {
-    alert('목표 삭제 실패: ' + (error.response?.data?.error || error.message))
+    showToast('목표 삭제 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
@@ -1665,7 +1716,7 @@ async function openEditTaskModal(taskId) {
     }
     
     if (!task) {
-      alert('작업을 찾을 수 없습니다')
+      showToast('작업을 찾을 수 없습니다', 'error')
       return
     }
     
@@ -1779,7 +1830,7 @@ async function openEditTaskModal(taskId) {
     document.body.appendChild(modal)
   } catch (error) {
     console.error('Open edit modal error:', error)
-    alert('모달 열기 실패')
+    showToast('모달 열기 실패', 'error')
   }
 }
 
@@ -1791,12 +1842,12 @@ async function submitTaskUpdate(taskId) {
   const due_date = document.getElementById('edit-task-duedate').value || null
   
   if (!title) {
-    alert('제목을 입력해주세요')
+    showToast('제목을 입력해주세요', 'warning')
     return
   }
   
   if (!priority) {
-    alert('우선순위를 선택해주세요')
+    showToast('우선순위를 선택해주세요', 'warning')
     return
   }
   
@@ -1811,9 +1862,9 @@ async function submitTaskUpdate(taskId) {
     
     closeEditTaskModal()
     loadDailyOverview()
-    alert('✅ 작업이 수정되었습니다')
+    showToast('작업이 수정되었습니다', 'success')
   } catch (error) {
-    alert('작업 수정 실패: ' + (error.response?.data?.error || error.message))
+    showToast('작업 수정 실패: ' + (error.response?.data?.error || error.message), 'error')
   }
 }
 
