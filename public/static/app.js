@@ -2,6 +2,7 @@
 const API_BASE = '/api'
 let currentUser = null
 let currentDate = new Date().toISOString().split('T')[0]
+let dailyOverviewData = null  // 🆕 전역 데이터 캐시
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -376,6 +377,9 @@ async function loadDailyOverview() {
   try {
     const response = await axios.get(`${API_BASE}/tasks/daily/${currentDate}`)
     const data = response.data.data
+    
+    // 🆕 전역 변수에 저장
+    dailyOverviewData = data
     
     renderBrainDumpList(data.brainDumpTasks)
     renderCategorizedLists(data)
@@ -1633,14 +1637,32 @@ function getDaysUntilDue(dueDate) {
 // Open edit task modal
 async function openEditTaskModal(taskId) {
   try {
-    // Find task from current data
-    const allTasks = [
-      ...dailyOverviewData.brainDumpTasks,
-      ...dailyOverviewData.urgentImportantTasks,
-      ...dailyOverviewData.importantTasks,
-      ...dailyOverviewData.laterTasks
-    ]
-    const task = allTasks.find(t => t.task_id === taskId)
+    // API에서 직접 작업 데이터 가져오기
+    let task = null
+    
+    // 캐시된 데이터에서 먼저 찾기
+    if (dailyOverviewData) {
+      const allTasks = [
+        ...(dailyOverviewData.brainDumpTasks || []),
+        ...(dailyOverviewData.urgentImportantTasks || []),
+        ...(dailyOverviewData.importantTasks || []),
+        ...(dailyOverviewData.laterTasks || [])
+      ]
+      task = allTasks.find(t => t.task_id === taskId)
+    }
+    
+    // 캐시에 없으면 API 호출
+    if (!task) {
+      const response = await axios.get(`${API_BASE}/tasks/daily/${currentDate}`)
+      const data = response.data.data
+      const allTasks = [
+        ...(data.brainDumpTasks || []),
+        ...(data.urgentImportantTasks || []),
+        ...(data.importantTasks || []),
+        ...(data.laterTasks || [])
+      ]
+      task = allTasks.find(t => t.task_id === taskId)
+    }
     
     if (!task) {
       alert('작업을 찾을 수 없습니다')
