@@ -2268,18 +2268,27 @@ async function loadMonthlyStats() {
       params: { year, month }
     })
     
-    const { summary, daily_trend, best_day, max_streak } = response.data.data
+    const { summary, monthly_trend, best_month, max_streak, period } = response.data.data
     
     // 이번 달인지 확인
     const now = new Date()
     const isThisMonth = baseDate.getFullYear() === now.getFullYear() && baseDate.getMonth() === now.getMonth()
+    
+    // 기간 포맷 (YYYY-MM-DD -> M월)
+    const formatPeriod = (start, end) => {
+      const startDate = new Date(start)
+      const endDate = new Date(end)
+      const startMonth = `${startDate.getFullYear()}년 ${startDate.getMonth() + 1}월`
+      const endMonth = `${endDate.getFullYear()}년 ${endDate.getMonth() + 1}월`
+      return `${startMonth} ~ ${endMonth}`
+    }
     
     const content = document.getElementById('stats-content')
     content.innerHTML = `
       <div class="space-y-6">
         <!-- Month Header with Navigation -->
         <div class="bg-white rounded-lg shadow-sm p-6">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between mb-2">
             <button 
               onclick="navigateMonthlyStats('prev')" 
               class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
@@ -2287,10 +2296,15 @@ async function loadMonthlyStats() {
               <i class="fas fa-chevron-left mr-2"></i>이전 달
             </button>
             
-            <h3 class="text-2xl font-bold text-gray-800 text-center">
-              <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>
-              ${year}년 ${month}월
-            </h3>
+            <div class="text-center">
+              <h3 class="text-2xl font-bold text-gray-800">
+                <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>
+                최근 6개월 추이
+              </h3>
+              <p class="text-sm text-gray-600 mt-1">
+                ${formatPeriod(period.start, period.end)}
+              </p>
+            </div>
             
             <button 
               onclick="navigateMonthlyStats('next')" 
@@ -2306,7 +2320,7 @@ async function loadMonthlyStats() {
         <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-bold text-gray-800 mb-4">
             <i class="fas fa-chart-pie mr-2 text-purple-500"></i>
-            월간 요약
+            6개월 통계 요약
           </h3>
           
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -2341,23 +2355,23 @@ async function loadMonthlyStats() {
         <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-bold text-gray-800 mb-4">
             <i class="fas fa-chart-area mr-2 text-green-500"></i>
-            월간 완료율 추이
+            월별 완료율 추이
           </h3>
           <canvas id="monthly-chart"></canvas>
         </div>
 
-        <!-- Best Day -->
-        ${best_day ? `
+        <!-- Best Month -->
+        ${best_month ? `
           <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg shadow-sm p-6">
             <div class="flex items-center">
               <i class="fas fa-medal text-4xl text-yellow-500 mr-4"></i>
               <div>
-                <h3 class="text-lg font-bold text-gray-800">최고 완료율 날짜</h3>
+                <h3 class="text-lg font-bold text-gray-800">최고 완료율 월</h3>
                 <p class="text-2xl font-bold text-orange-600 mt-1">
-                  ${formatDate(best_day.task_date)}
+                  ${formatMonthKorean(best_month.month)}
                 </p>
                 <p class="text-sm text-gray-600 mt-1">
-                  완료율: ${best_day.completion_rate}% (${best_day.completed_tasks}/${best_day.total_tasks})
+                  완료율: ${best_month.completion_rate}% (${best_month.completed_tasks}/${best_month.total_tasks})
                 </p>
               </div>
             </div>
@@ -2366,8 +2380,8 @@ async function loadMonthlyStats() {
       </div>
     `
     
-    // Draw Chart
-    drawMonthlyChart(daily_trend)
+    // Draw Chart with monthly data
+    drawMonthlyChart(monthly_trend)
   } catch (error) {
     console.error('Load monthly stats error:', error)
     showToast('월별 통계 로드 실패', 'error')
@@ -2475,7 +2489,11 @@ function drawMonthlyChart(data) {
     statsChartInstance.destroy()
   }
   
-  const labels = data.map(d => new Date(d.task_date).getDate() + '일')
+  // X축: 월 (YYYY-MM 형식 -> M월)
+  const labels = data.map(d => {
+    const [year, month] = d.month.split('-')
+    return `${parseInt(month)}월`
+  })
   const completionRates = data.map(d => d.completion_rate || 0)
   
   statsChartInstance = new Chart(ctx, {
@@ -2521,6 +2539,11 @@ function formatDate(dateStr) {
   const day = date.getDate()
   const dayOfWeek = days[date.getDay()]
   return `${month}월 ${day}일 (${dayOfWeek})`
+}
+
+function formatMonthKorean(monthStr) {
+  const [year, month] = monthStr.split('-')
+  return `${year}년 ${parseInt(month)}월`
 }
 
 function formatTime(dateTimeStr) {

@@ -112,18 +112,44 @@ stats.get('/weekly', async (c) => {
 })
 
 // GET /api/stats/monthly?year=2025&month=12
+// Returns last 6 months trend (including current month)
 stats.get('/monthly', async (c) => {
   try {
     const userId = c.get('userId') as number
-    const year = c.req.query('year') || new Date().getFullYear().toString()
-    const month = c.req.query('month') || (new Date().getMonth() + 1).toString().padStart(2, '0')
+    const year = parseInt(c.req.query('year') || new Date().getFullYear().toString())
+    const month = parseInt(c.req.query('month') || (new Date().getMonth() + 1).toString())
     
-    const startDate = `${year}-${month}-01`
-    const endDate = `${year}-${month}-31`
+    // Calculate 6 months range (current month - 5 months)
+    const endDate = new Date(year, month - 1, 1) // Current month start
+    const startDate = new Date(year, month - 6, 1) // 6 months ago
     
-    // 월간 통계
+    const startDateStr = startDate.toISOString().split('T')[0]
+    const endDateStr = new Date(year, month, 0).toISOString().split('T')[0] // Last day of current month
+    
+    // Monthly trend (group by year-month)
+    const monthlyTrend = await c.env.DB.prepare(`
+      SELECT 
+        strftime('%Y-%m', task_date) as month,
+        COUNT(*) as total_tasks,
+        SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_tasks,
+        ROUND(
+          CAST(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) * 100, 
+          2
+        ) as completion_rate,
+        SUM(CASE WHEN is_top3 = 1 THEN 1 ELSE 0 END) as top3_tasks,
+        SUM(CASE WHEN is_top3 = 1 AND status = 'COMPLETED' THEN 1 ELSE 0 END) as top3_completed,
+        COUNT(DISTINCT task_date) as working_days
+      FROM daily_tasks
+      WHERE user_id = ? 
+        AND task_date BETWEEN ? AND ?
+      GROUP BY strftime('%Y-%m', task_date)
+      ORDER BY month
+    `).bind(userId, startDateStr, endDateStr).all()
+    
+    // Overall summary for the 6 months
     const monthlyStats = await c.env.DB.prepare(`
       SELECT 
+        COUNT(DISTINCT strftime('%Y-%m', task_date)) as total_months,
         COUNT(DISTINCT task_date) as working_days,
         COUNT(*) as total_tasks,
         SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_tasks,
@@ -141,38 +167,29 @@ stats.get('/monthly', async (c) => {
       FROM daily_tasks
       WHERE user_id = ? 
         AND task_date BETWEEN ? AND ?
-    `).bind(userId, startDate, endDate).first()
+    `).bind(userId, startDateStr, endDateStr).first()
     
-    // 일별 완료율 추이
-    const dailyTrend = await c.env.DB.prepare(`
-      SELECT 
-        task_date,
-        COUNT(*) as total_tasks,
-        SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_tasks,
-        ROUND(
-          CAST(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) * 100, 
-          2
-        ) as completion_rate
-      FROM daily_tasks
-      WHERE user_id = ? 
-        AND task_date BETWEEN ? AND ?
-      GROUP BY task_date
-      ORDER BY task_date
-    `).bind(userId, startDate, endDate).all()
-    
-    // 최고 완료율 날짜
-    const bestDay = dailyTrend.results.length > 0
-      ? dailyTrend.results.reduce((prev, current) =>
+    // Best month (highest completion rate)
+    const bestMonth = monthlyTrend.results.length > 0
+      ? monthlyTrend.results.reduce((prev, current) =>
           (current.completion_rate > prev.completion_rate) ? current : prev
         )
       : null
     
-    // 연속 작업일 수 계산
+    // Max streak calculation across all days in 6 months
+    const allDays = await c.env.DB.prepare(`
+      SELECT DISTINCT task_date
+      FROM daily_tasks
+      WHERE user_id = ? 
+        AND task_date BETWEEN ? AND ?
+      ORDER BY task_date
+    `).bind(userId, startDateStr, endDateStr).all()
+    
     let currentStreak = 0
     let maxStreak = 0
     let lastDate: Date | null = null
     
-    dailyTrend.results.forEach((day: any) => {
+    allDays.results.forEach((day: any) => {
       const currentDate = new Date(day.task_date)
       if (lastDate) {
         const diffDays = Math.floor((currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
@@ -191,9 +208,13 @@ stats.get('/monthly', async (c) => {
     
     return successResponse(c, {
       summary: monthlyStats,
-      daily_trend: dailyTrend.results,
-      best_day: bestDay,
-      max_streak: maxStreak
+      monthly_trend: monthlyTrend.results,
+      best_month: bestMonth,
+      max_streak: maxStreak,
+      period: {
+        start: startDateStr,
+        end: endDateStr
+      }
     })
   } catch (error) {
     console.error('Monthly stats error:', error)
