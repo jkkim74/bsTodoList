@@ -8,6 +8,7 @@ import reviews from './routes/reviews'
 import goals from './routes/goals'
 import letgo from './routes/letgo'
 import notes from './routes/notes'
+import stats from './routes/stats'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -31,6 +32,7 @@ app.route('/api/reviews', reviews)
 app.route('/api/weekly-goals', goals)
 app.route('/api/let-go', letgo)
 app.route('/api/notes', notes)
+app.route('/api/stats', stats)
 
 // Health check
 app.get('/api/health', (c) => {
@@ -66,6 +68,7 @@ app.get('/', (c) => {
         <div id="app"></div>
         
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
         <script src="/static/app.js"></script>
     </body>
     </html>

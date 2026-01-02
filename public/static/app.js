@@ -251,6 +251,10 @@ function renderMainPage() {
               
               <!-- User Info & Logout -->
               <div class="flex items-center justify-between sm:justify-start gap-2">
+                <button onclick="renderStatsPage()" class="btn bg-blue-500 hover:bg-blue-600 text-white text-sm">
+                  <i class="fas fa-chart-line mr-1 sm:mr-2"></i>
+                  <span class="hidden xs:inline">통계</span>
+                </button>
                 <div class="flex items-center gap-2">
                   <i class="fas fa-user text-gray-500 text-sm"></i>
                   <span class="font-medium text-gray-800 text-sm md:text-base">${currentUser.username}님</span>
@@ -1870,4 +1874,539 @@ async function submitTaskUpdate(taskId) {
 
 function closeEditTaskModal() {
   document.getElementById('edit-task-modal')?.remove()
+}
+
+// ==========================================
+// PHASE 2: 통계 대시보드 기능
+// ==========================================
+
+let currentStatsView = 'daily' // daily, weekly, monthly
+let statsChartInstance = null
+
+// 통계 페이지 렌더링
+function renderStatsPage() {
+  const app = document.getElementById('app')
+  app.innerHTML = `
+    <div class="min-h-screen bg-gray-100">
+      <!-- Header -->
+      <header class="bg-white shadow-sm mb-6">
+        <div class="container mx-auto px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+              <button onclick="backToMain()" class="text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left text-xl"></i>
+              </button>
+              <h1 class="text-2xl font-bold text-gray-800">
+                <i class="fas fa-chart-line mr-2 text-blue-500"></i>
+                생산성 통계
+              </h1>
+            </div>
+            <div class="text-sm text-gray-600">
+              ${currentUser.username}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <div class="container mx-auto px-4 pb-8">
+        <!-- View Tabs -->
+        <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div class="flex space-x-2">
+            <button 
+              onclick="switchStatsView('daily')" 
+              class="flex-1 px-4 py-2 rounded-lg font-medium transition ${currentStatsView === 'daily' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+            >
+              <i class="fas fa-calendar-day mr-2"></i>일별
+            </button>
+            <button 
+              onclick="switchStatsView('weekly')" 
+              class="flex-1 px-4 py-2 rounded-lg font-medium transition ${currentStatsView === 'weekly' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+            >
+              <i class="fas fa-calendar-week mr-2"></i>주별
+            </button>
+            <button 
+              onclick="switchStatsView('monthly')" 
+              class="flex-1 px-4 py-2 rounded-lg font-medium transition ${currentStatsView === 'monthly' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+            >
+              <i class="fas fa-calendar-alt mr-2"></i>월별
+            </button>
+          </div>
+        </div>
+
+        <!-- Stats Content -->
+        <div id="stats-content">
+          <div class="flex items-center justify-center py-20">
+            <div class="text-center">
+              <i class="fas fa-spinner fa-spin text-4xl text-blue-500 mb-4"></i>
+              <p class="text-gray-600">통계 로딩 중...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+  loadStatsView()
+}
+
+// 통계 뷰 전환
+function switchStatsView(view) {
+  currentStatsView = view
+  renderStatsPage()
+}
+
+// 메인으로 돌아가기
+function backToMain() {
+  renderApp()
+}
+
+// 통계 뷰 로드
+async function loadStatsView() {
+  if (currentStatsView === 'daily') {
+    await loadDailyStats()
+  } else if (currentStatsView === 'weekly') {
+    await loadWeeklyStats()
+  } else if (currentStatsView === 'monthly') {
+    await loadMonthlyStats()
+  }
+}
+
+// 일별 통계 로드
+async function loadDailyStats() {
+  try {
+    // 최근 7일 데이터
+    const endDate = new Date().toISOString().split('T')[0]
+    const startDate = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    
+    const response = await axios.get(`${API_BASE}/stats/daily`, {
+      params: { start_date: startDate, end_date: endDate }
+    })
+    
+    const dailyData = response.data.data
+    
+    // 렌더링
+    const content = document.getElementById('stats-content')
+    content.innerHTML = `
+      <div class="space-y-6">
+        <!-- Date Range -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">
+              <i class="fas fa-calendar-week mr-2 text-blue-500"></i>
+              최근 7일 통계
+            </h3>
+            <div class="text-sm text-gray-600">
+              ${startDate} ~ ${endDate}
+            </div>
+          </div>
+          
+          <!-- Chart -->
+          <div class="mt-4">
+            <canvas id="daily-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Daily List -->
+        <div class="space-y-4">
+          ${dailyData.map(day => `
+            <div class="bg-white rounded-lg shadow-sm p-6">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-lg font-semibold text-gray-800">
+                  ${formatDate(day.task_date)}
+                </h4>
+                <span class="text-2xl font-bold ${getCompletionRateColor(day.completion_rate)}">
+                  ${day.completion_rate || 0}%
+                </span>
+              </div>
+              
+              <div class="grid grid-cols-2 gap-4 text-sm">
+                <div class="flex items-center">
+                  <i class="fas fa-tasks text-blue-500 mr-2"></i>
+                  <span class="text-gray-600">총 작업:</span>
+                  <span class="ml-2 font-semibold">${day.total_tasks}개</span>
+                </div>
+                <div class="flex items-center">
+                  <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                  <span class="text-gray-600">완료:</span>
+                  <span class="ml-2 font-semibold">${day.completed_tasks}개</span>
+                </div>
+                <div class="flex items-center">
+                  <i class="fas fa-star text-yellow-500 mr-2"></i>
+                  <span class="text-gray-600">TOP 3:</span>
+                  <span class="ml-2 font-semibold">${day.top3_tasks}개</span>
+                </div>
+                <div class="flex items-center">
+                  <i class="fas fa-trophy text-orange-500 mr-2"></i>
+                  <span class="text-gray-600">TOP 3 완료:</span>
+                  <span class="ml-2 font-semibold">${day.top3_completed}개</span>
+                </div>
+              </div>
+              
+              <!-- Progress Bar -->
+              <div class="mt-4">
+                <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    class="h-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500"
+                    style="width: ${day.completion_rate || 0}%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `
+    
+    // Draw Chart
+    drawDailyChart(dailyData)
+  } catch (error) {
+    console.error('Load daily stats error:', error)
+    showToast('일별 통계 로드 실패', 'error')
+  }
+}
+
+// 주별 통계 로드
+async function loadWeeklyStats() {
+  try {
+    // 이번 주 시작일/종료일 계산
+    const today = new Date()
+    const dayOfWeek = today.getDay()
+    const startDate = new Date(today)
+    startDate.setDate(today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)) // 월요일
+    const endDate = new Date(startDate)
+    endDate.setDate(startDate.getDate() + 6) // 일요일
+    
+    const startDateStr = startDate.toISOString().split('T')[0]
+    const endDateStr = endDate.toISOString().split('T')[0]
+    
+    const response = await axios.get(`${API_BASE}/stats/weekly`, {
+      params: { start_date: startDateStr, end_date: endDateStr }
+    })
+    
+    const { summary, daily_trend, most_productive_day } = response.data.data
+    
+    const content = document.getElementById('stats-content')
+    content.innerHTML = `
+      <div class="space-y-6">
+        <!-- Week Summary -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">
+            <i class="fas fa-calendar-week mr-2 text-blue-500"></i>
+            주간 요약 (${startDateStr} ~ ${endDateStr})
+          </h3>
+          
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center p-4 bg-blue-50 rounded-lg">
+              <div class="text-3xl font-bold text-blue-600">${summary.total_tasks || 0}</div>
+              <div class="text-sm text-gray-600 mt-1">총 작업</div>
+            </div>
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+              <div class="text-3xl font-bold text-green-600">${summary.completed_tasks || 0}</div>
+              <div class="text-sm text-gray-600 mt-1">완료</div>
+            </div>
+            <div class="text-center p-4 bg-purple-50 rounded-lg">
+              <div class="text-3xl font-bold text-purple-600">${summary.completion_rate || 0}%</div>
+              <div class="text-sm text-gray-600 mt-1">완료율</div>
+            </div>
+            <div class="text-center p-4 bg-orange-50 rounded-lg">
+              <div class="text-3xl font-bold text-orange-600">${summary.top3_completion_rate || 0}%</div>
+              <div class="text-sm text-gray-600 mt-1">TOP 3 달성률</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly Trend Chart -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">
+            <i class="fas fa-chart-line mr-2 text-green-500"></i>
+            주간 완료율 추이
+          </h3>
+          <canvas id="weekly-chart"></canvas>
+        </div>
+
+        <!-- Most Productive Day -->
+        ${most_productive_day ? `
+          <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg shadow-sm p-6">
+            <div class="flex items-center">
+              <i class="fas fa-trophy text-4xl text-yellow-500 mr-4"></i>
+              <div>
+                <h3 class="text-lg font-bold text-gray-800">가장 생산적인 날</h3>
+                <p class="text-2xl font-bold text-orange-600 mt-1">
+                  ${formatDate(most_productive_day.task_date)}
+                </p>
+                <p class="text-sm text-gray-600 mt-1">
+                  완료율: ${most_productive_day.completion_rate}% (${most_productive_day.completed_tasks}/${most_productive_day.total_tasks})
+                </p>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `
+    
+    // Draw Chart
+    drawWeeklyChart(daily_trend)
+  } catch (error) {
+    console.error('Load weekly stats error:', error)
+    showToast('주별 통계 로드 실패', 'error')
+  }
+}
+
+// 월별 통계 로드
+async function loadMonthlyStats() {
+  try {
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = (today.getMonth() + 1).toString().padStart(2, '0')
+    
+    const response = await axios.get(`${API_BASE}/stats/monthly`, {
+      params: { year, month }
+    })
+    
+    const { summary, daily_trend, best_day, max_streak } = response.data.data
+    
+    const content = document.getElementById('stats-content')
+    content.innerHTML = `
+      <div class="space-y-6">
+        <!-- Month Header -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <h3 class="text-2xl font-bold text-gray-800 text-center">
+            <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>
+            ${year}년 ${month}월
+          </h3>
+        </div>
+
+        <!-- Monthly Summary -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">
+            <i class="fas fa-chart-pie mr-2 text-purple-500"></i>
+            월간 요약
+          </h3>
+          
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="text-center p-4 bg-blue-50 rounded-lg">
+              <div class="text-3xl font-bold text-blue-600">${summary.working_days || 0}</div>
+              <div class="text-sm text-gray-600 mt-1">작업일</div>
+            </div>
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+              <div class="text-3xl font-bold text-green-600">${summary.completed_tasks || 0}</div>
+              <div class="text-sm text-gray-600 mt-1">완료 작업</div>
+            </div>
+            <div class="text-center p-4 bg-purple-50 rounded-lg">
+              <div class="text-3xl font-bold text-purple-600">${summary.avg_completion_rate || 0}%</div>
+              <div class="text-sm text-gray-600 mt-1">평균 완료율</div>
+            </div>
+            <div class="text-center p-4 bg-orange-50 rounded-lg">
+              <div class="text-3xl font-bold text-orange-600">${summary.top3_completion_rate || 0}%</div>
+              <div class="text-sm text-gray-600 mt-1">TOP 3 달성률</div>
+            </div>
+            <div class="text-center p-4 bg-red-50 rounded-lg">
+              <div class="text-3xl font-bold text-red-600">${max_streak || 0}</div>
+              <div class="text-sm text-gray-600 mt-1">연속 작업일</div>
+            </div>
+            <div class="text-center p-4 bg-yellow-50 rounded-lg">
+              <div class="text-3xl font-bold text-yellow-600">${summary.total_tasks || 0}</div>
+              <div class="text-sm text-gray-600 mt-1">총 작업</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly Trend Chart -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">
+            <i class="fas fa-chart-area mr-2 text-green-500"></i>
+            월간 완료율 추이
+          </h3>
+          <canvas id="monthly-chart"></canvas>
+        </div>
+
+        <!-- Best Day -->
+        ${best_day ? `
+          <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg shadow-sm p-6">
+            <div class="flex items-center">
+              <i class="fas fa-medal text-4xl text-yellow-500 mr-4"></i>
+              <div>
+                <h3 class="text-lg font-bold text-gray-800">최고 완료율 날짜</h3>
+                <p class="text-2xl font-bold text-orange-600 mt-1">
+                  ${formatDate(best_day.task_date)}
+                </p>
+                <p class="text-sm text-gray-600 mt-1">
+                  완료율: ${best_day.completion_rate}% (${best_day.completed_tasks}/${best_day.total_tasks})
+                </p>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `
+    
+    // Draw Chart
+    drawMonthlyChart(daily_trend)
+  } catch (error) {
+    console.error('Load monthly stats error:', error)
+    showToast('월별 통계 로드 실패', 'error')
+  }
+}
+
+// Chart Drawing Functions
+function drawDailyChart(data) {
+  const ctx = document.getElementById('daily-chart')
+  if (!ctx) return
+  
+  // Destroy existing chart
+  if (statsChartInstance) {
+    statsChartInstance.destroy()
+  }
+  
+  const labels = data.map(d => formatShortDate(d.task_date))
+  const completionRates = data.map(d => d.completion_rate || 0)
+  
+  statsChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '완료율 (%)',
+        data: completionRates,
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: function(value) {
+              return value + '%'
+            }
+          }
+        }
+      }
+    }
+  })
+}
+
+function drawWeeklyChart(data) {
+  const ctx = document.getElementById('weekly-chart')
+  if (!ctx) return
+  
+  if (statsChartInstance) {
+    statsChartInstance.destroy()
+  }
+  
+  const labels = data.map(d => formatShortDate(d.task_date))
+  const completionRates = data.map(d => d.completion_rate || 0)
+  
+  statsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '완료율 (%)',
+        data: completionRates,
+        backgroundColor: 'rgba(34, 197, 94, 0.8)',
+        borderColor: 'rgb(34, 197, 94)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: function(value) {
+              return value + '%'
+            }
+          }
+        }
+      }
+    }
+  })
+}
+
+function drawMonthlyChart(data) {
+  const ctx = document.getElementById('monthly-chart')
+  if (!ctx) return
+  
+  if (statsChartInstance) {
+    statsChartInstance.destroy()
+  }
+  
+  const labels = data.map(d => new Date(d.task_date).getDate() + '일')
+  const completionRates = data.map(d => d.completion_rate || 0)
+  
+  statsChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '완료율 (%)',
+        data: completionRates,
+        borderColor: 'rgb(168, 85, 247)',
+        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: function(value) {
+              return value + '%'
+            }
+          }
+        }
+      }
+    }
+  })
+}
+
+// Utility Functions
+function formatDate(dateStr) {
+  const date = new Date(dateStr)
+  const days = ['일', '월', '화', '수', '목', '금', '토']
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const dayOfWeek = days[date.getDay()]
+  return `${month}월 ${day}일 (${dayOfWeek})`
+}
+
+function formatShortDate(dateStr) {
+  const date = new Date(dateStr)
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${month}/${day}`
+}
+
+function getCompletionRateColor(rate) {
+  if (rate >= 80) return 'text-green-600'
+  if (rate >= 60) return 'text-blue-600'
+  if (rate >= 40) return 'text-yellow-600'
+  return 'text-red-600'
 }
