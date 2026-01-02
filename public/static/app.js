@@ -508,21 +508,52 @@ function renderCategorizedLists(data) {
 function renderTaskList(elementId, tasks) {
   const list = document.getElementById(elementId)
   
-  // 🔴 핵심 수정: step='ACTION'인 항목(이미 TOP 3로 설정됨)은 제외
-  const filteredTasks = tasks.filter(task => task.step !== 'ACTION' && task.status !== 'COMPLETED')
+  // ✅ 개선: 완료된 항목도 표시 (취소선 + 초록 배경)
+  const filteredTasks = tasks
   
   if (filteredTasks.length === 0) {
     list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">없음</div>'
     return
   }
   
-  list.innerHTML = filteredTasks.map(task => `
-    <div class="task-item bg-white fade-in">
+  // ✅ 정렬: 진행 중 → 선택됨 → 완료됨
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    const statusOrder = { 'IN_PROGRESS': 0, 'ACTION': 1, 'COMPLETED': 2 }
+    const aOrder = a.status === 'COMPLETED' ? 2 : (a.step === 'ACTION' ? 1 : 0)
+    const bOrder = b.status === 'COMPLETED' ? 2 : (b.step === 'ACTION' ? 1 : 0)
+    return aOrder - bOrder
+  })
+  
+  list.innerHTML = sortedTasks.map(task => {
+    const isCompleted = task.status === 'COMPLETED'
+    const isSelected = task.step === 'ACTION' && !isCompleted
+    
+    return `
+    <div class="task-item fade-in ${
+      isCompleted ? 'bg-green-50 border-green-200' : 
+      isSelected ? 'opacity-50 bg-green-50 border-green-200' : 
+      'bg-white'
+    }">
+      ${isCompleted ? `
+        <div class="text-xs text-green-600 font-semibold mb-2 flex items-center">
+          <i class="fas fa-check-circle mr-1"></i>
+          <span>완료됨</span>
+          ${task.completed_at ? `
+            <span class="text-gray-500 ml-1">· ${formatTime(task.completed_at)}</span>
+          ` : ''}
+        </div>
+      ` : isSelected ? `
+        <div class="text-xs text-green-600 font-semibold mb-2 flex items-center">
+          <i class="fas fa-check-circle mr-1"></i>
+          <span>TOP 3로 선택됨</span>
+        </div>
+      ` : ''}
+      
       <div class="flex items-start justify-between gap-2 mb-2">
         <div class="flex-1">
-          <div class="font-medium text-gray-800 text-sm">${task.title}</div>
-          ${task.description ? `<div class="text-xs text-gray-600 mt-1">${task.description}</div>` : ''}
-          ${task.due_date ? `
+          <div class="font-medium text-sm ${isCompleted ? 'line-through text-gray-500' : 'text-gray-800'}">${task.title}</div>
+          ${task.description ? `<div class="text-xs mt-1 ${isCompleted ? 'line-through text-gray-400' : 'text-gray-600'}">${task.description}</div>` : ''}
+          ${task.due_date && !isCompleted ? `
             <div class="text-xs text-gray-500 mt-1">
               <i class="fas fa-calendar-check text-orange-500 mr-1"></i>
               마감: ${formatDateKorean(task.due_date)}
@@ -530,28 +561,33 @@ function renderTaskList(elementId, tasks) {
             </div>
           ` : ''}
         </div>
-        <div class="flex gap-1">
-          <button onclick="openEditTaskModal(${task.task_id})" 
-            class="text-gray-400 hover:text-blue-500 transition-colors" title="수정">
-            <i class="fas fa-edit text-sm"></i>
-          </button>
-          <button onclick="deleteTask(${task.task_id})" 
-            class="text-gray-400 hover:text-red-500 transition-colors" title="삭제">
-            <i class="fas fa-times text-sm"></i>
-          </button>
-        </div>
+        ${!isSelected && !isCompleted ? `
+          <div class="flex gap-1">
+            <button onclick="openEditTaskModal(${task.task_id})" 
+              class="text-gray-400 hover:text-blue-500 transition-colors" title="수정">
+              <i class="fas fa-edit text-sm"></i>
+            </button>
+            <button onclick="deleteTask(${task.task_id})" 
+              class="text-gray-400 hover:text-red-500 transition-colors" title="삭제">
+              <i class="fas fa-times text-sm"></i>
+            </button>
+          </div>
+        ` : ''}
       </div>
-      ${task.estimated_time ? `
+      ${task.estimated_time && !isCompleted ? `
         <div class="text-xs text-gray-600 mb-2">
           <i class="far fa-clock"></i> ${task.estimated_time}
         </div>
       ` : ''}
-      <button onclick="promptSetTop3(${task.task_id})" 
-        class="btn btn-primary text-xs py-1 px-3">
-        <i class="fas fa-star mr-1"></i> TOP 3 설정
-      </button>
+      ${!isSelected && !isCompleted ? `
+        <button onclick="promptSetTop3(${task.task_id})" 
+          class="btn btn-primary text-xs py-1 px-3">
+          <i class="fas fa-star mr-1"></i> TOP 3 설정
+        </button>
+      ` : ''}
     </div>
-  `).join('')
+    `
+  }).join('')
 }
 
 // Render let go list (내려놓기)
@@ -636,8 +672,19 @@ function renderTop3List(tasks) {
       </div>
       ${task.action_detail ? `
         <div class="top3-detail ${isCompleted ? 'opacity-60' : ''}">
-          <i class="fas fa-clipboard-list mr-1"></i>
-          ${task.action_detail}
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-gray-600">
+              <i class="fas fa-clipboard-list mr-1"></i>행동 계획
+            </span>
+            ${!isCompleted ? `
+              <span class="text-xs text-gray-500">
+                <i class="fas fa-lock mr-1"></i>수정 불가
+              </span>
+            ` : ''}
+          </div>
+          <div class="text-sm">
+            ${task.action_detail}
+          </div>
         </div>
       ` : ''}
       ${!isCompleted ? `
