@@ -454,7 +454,13 @@ async function loadDailyOverview() {
 // Render brain dump list
 function renderBrainDumpList(tasks) {
   const list = document.getElementById('brain-dump-list')
-  if (tasks.length === 0) {
+  
+  // 🔴 핵심 수정: step='CATEGORIZED' 또는 'ACTION'인 항목(이미 분류됨)은 제외
+  const unCategorizedTasks = tasks.filter(task => 
+    task.step === 'BRAIN_DUMP' && task.status !== 'COMPLETED'
+  )
+  
+  if (unCategorizedTasks.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
         <i class="fas fa-inbox"></i>
@@ -465,7 +471,7 @@ function renderBrainDumpList(tasks) {
     return
   }
   
-  list.innerHTML = tasks.map(task => `
+  list.innerHTML = unCategorizedTasks.map(task => `
     <div class="task-item fade-in">
       <div class="flex items-start justify-between gap-3">
         <div class="flex-1">
@@ -501,12 +507,16 @@ function renderCategorizedLists(data) {
 
 function renderTaskList(elementId, tasks) {
   const list = document.getElementById(elementId)
-  if (tasks.length === 0) {
+  
+  // 🔴 핵심 수정: step='ACTION'인 항목(이미 TOP 3로 설정됨)은 제외
+  const filteredTasks = tasks.filter(task => task.step !== 'ACTION' && task.status !== 'COMPLETED')
+  
+  if (filteredTasks.length === 0) {
     list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">없음</div>'
     return
   }
   
-  list.innerHTML = tasks.map(task => `
+  list.innerHTML = filteredTasks.map(task => `
     <div class="task-item bg-white fade-in">
       <div class="flex items-start justify-between gap-2 mb-2">
         <div class="flex-1">
@@ -574,6 +584,7 @@ function renderLetGoList(elementId, tasks) {
 // Render TOP 3 list
 function renderTop3List(tasks) {
   const list = document.getElementById('top3-list')
+  
   if (tasks.length === 0) {
     list.innerHTML = `
       <div class="empty-state card">
@@ -585,27 +596,51 @@ function renderTop3List(tasks) {
     return
   }
   
-  list.innerHTML = tasks.map((task, index) => `
-    <div class="top3-item fade-in ${task.status === 'COMPLETED' ? 'opacity-75' : ''}">
+  // ✅ 개선: 완료된 항목도 표시하되, 진행 중 항목을 먼저 표시
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1
+    if (a.status !== 'COMPLETED' && b.status === 'COMPLETED') return -1
+    return a.top3_order - b.top3_order
+  })
+  
+  list.innerHTML = sortedTasks.map((task, index) => {
+    const isCompleted = task.status === 'COMPLETED'
+    const displayNumber = task.top3_order || (index + 1)
+    
+    return `
+    <div class="top3-item fade-in ${isCompleted ? 'bg-green-50 border-green-200' : ''}">
       <div class="flex items-start justify-between mb-3">
         <div class="flex items-start flex-1">
-          <span class="top3-number">${index + 1}</span>
+          <span class="top3-number ${isCompleted ? 'bg-green-500' : ''}">${displayNumber}</span>
           <div class="flex-1">
-            <h3 class="top3-title ${task.status === 'COMPLETED' ? 'line-through' : ''}">${task.title}</h3>
-            ${task.description ? `<p class="text-sm opacity-90 mt-1">${task.description}</p>` : ''}
+            <h3 class="top3-title ${isCompleted ? 'line-through text-gray-500' : ''}">${task.title}</h3>
+            ${task.description ? `<p class="text-sm mt-1 ${isCompleted ? 'line-through text-gray-400' : 'opacity-90'}">${task.description}</p>` : ''}
+            ${isCompleted ? `
+              <div class="mt-2 flex items-center gap-2">
+                <span class="text-xs font-semibold text-green-600">
+                  <i class="fas fa-check-circle mr-1"></i>완료됨
+                </span>
+                ${task.completed_at ? `
+                  <span class="text-xs text-gray-500">
+                    ${formatTime(task.completed_at)}
+                  </span>
+                ` : ''}
+              </div>
+            ` : ''}
           </div>
         </div>
-        <button onclick="${task.status === 'COMPLETED' ? `uncompleteTask(${task.task_id})` : `completeTask(${task.task_id})`}" 
-          class="text-3xl transition-all hover:scale-110 ${task.status === 'COMPLETED' ? 'text-green-300' : 'text-white/50 hover:text-white'}">
+        <button onclick="${isCompleted ? `uncompleteTask(${task.task_id})` : `completeTask(${task.task_id})`}" 
+          class="text-3xl transition-all hover:scale-110 ${isCompleted ? 'text-green-500' : 'text-white/50 hover:text-white'}">
           <i class="fas fa-check-circle"></i>
         </button>
       </div>
       ${task.action_detail ? `
-        <div class="top3-detail">
+        <div class="top3-detail ${isCompleted ? 'opacity-60' : ''}">
           <i class="fas fa-clipboard-list mr-1"></i>
           ${task.action_detail}
         </div>
       ` : ''}
+      ${!isCompleted ? `
       <div class="mt-3 flex items-center gap-2">
         ${task.time_slot ? `
           <span class="time-badge">
@@ -617,14 +652,11 @@ function renderTop3List(tasks) {
             <i class="far fa-clock"></i> ${task.estimated_time}
           </span>
         ` : ''}
-        ${task.completed_at ? `
-          <span class="time-badge">
-            <i class="fas fa-check"></i> 완료됨
-          </span>
-        ` : ''}
       </div>
+      ` : ''}
     </div>
-  `).join('')
+    `
+  }).join('')
 }
 
 // Render statistics
@@ -1882,6 +1914,7 @@ function closeEditTaskModal() {
 
 let currentStatsView = 'daily' // daily, weekly, monthly
 let statsChartInstance = null
+let currentStatsDate = new Date() // 통계 페이지에서 조회 중인 날짜
 
 // 통계 페이지 렌더링
 function renderStatsPage() {
@@ -1952,6 +1985,7 @@ function renderStatsPage() {
 // 통계 뷰 전환
 function switchStatsView(view) {
   currentStatsView = view
+  currentStatsDate = new Date() // 뷰 전환 시 오늘로 리셋
   renderStatsPage()
 }
 
@@ -1971,12 +2005,19 @@ async function loadStatsView() {
   }
 }
 
+// 일별 통계 네비게이션
+function navigateDailyStats(direction) {
+  const days = direction === 'prev' ? -7 : 7
+  currentStatsDate.setDate(currentStatsDate.getDate() + days)
+  loadDailyStats()
+}
+
 // 일별 통계 로드
 async function loadDailyStats() {
   try {
-    // 최근 7일 데이터
-    const endDate = new Date().toISOString().split('T')[0]
-    const startDate = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    // currentStatsDate 기준 7일 데이터
+    const endDate = new Date(currentStatsDate).toISOString().split('T')[0]
+    const startDate = new Date(currentStatsDate.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     
     const response = await axios.get(`${API_BASE}/stats/daily`, {
       params: { start_date: startDate, end_date: endDate }
@@ -1986,18 +2027,39 @@ async function loadDailyStats() {
     
     // 렌더링
     const content = document.getElementById('stats-content')
+    
+    // 이전/다음 주 계산
+    const isToday = new Date(endDate).toDateString() === new Date().toDateString()
+    
     content.innerHTML = `
       <div class="space-y-6">
-        <!-- Date Range -->
+        <!-- Date Range with Navigation -->
         <div class="bg-white rounded-lg shadow-sm p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-gray-800">
-              <i class="fas fa-calendar-week mr-2 text-blue-500"></i>
-              최근 7일 통계
-            </h3>
-            <div class="text-sm text-gray-600">
-              ${startDate} ~ ${endDate}
+            <button 
+              onclick="navigateDailyStats('prev')" 
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+            >
+              <i class="fas fa-chevron-left mr-2"></i>이전 7일
+            </button>
+            
+            <div class="text-center">
+              <h3 class="text-lg font-bold text-gray-800">
+                <i class="fas fa-calendar-week mr-2 text-blue-500"></i>
+                일별 통계
+              </h3>
+              <div class="text-sm text-gray-600 mt-1">
+                ${startDate} ~ ${endDate}
+              </div>
             </div>
+            
+            <button 
+              onclick="navigateDailyStats('next')" 
+              class="px-4 py-2 rounded-lg transition ${isToday ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200'}"
+              ${isToday ? 'disabled' : ''}
+            >
+              다음 7일<i class="fas fa-chevron-right ml-2"></i>
+            </button>
           </div>
           
           <!-- Chart -->
@@ -2065,14 +2127,21 @@ async function loadDailyStats() {
   }
 }
 
+// 주별 통계 네비게이션
+function navigateWeeklyStats(direction) {
+  const days = direction === 'prev' ? -7 : 7
+  currentStatsDate.setDate(currentStatsDate.getDate() + days)
+  loadWeeklyStats()
+}
+
 // 주별 통계 로드
 async function loadWeeklyStats() {
   try {
-    // 이번 주 시작일/종료일 계산
-    const today = new Date()
-    const dayOfWeek = today.getDay()
-    const startDate = new Date(today)
-    startDate.setDate(today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)) // 월요일
+    // currentStatsDate 기준으로 해당 주의 월요일~일요일 계산
+    const baseDate = new Date(currentStatsDate)
+    const dayOfWeek = baseDate.getDay()
+    const startDate = new Date(baseDate)
+    startDate.setDate(baseDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)) // 월요일
     const endDate = new Date(startDate)
     endDate.setDate(startDate.getDate() + 6) // 일요일
     
@@ -2085,15 +2154,44 @@ async function loadWeeklyStats() {
     
     const { summary, daily_trend, most_productive_day } = response.data.data
     
+    // 이번 주인지 확인
+    const now = new Date()
+    const nowDayOfWeek = now.getDay()
+    const thisWeekStart = new Date(now)
+    thisWeekStart.setDate(now.getDate() - nowDayOfWeek + (nowDayOfWeek === 0 ? -6 : 1))
+    const isThisWeek = startDate.toDateString() === thisWeekStart.toDateString()
+    
     const content = document.getElementById('stats-content')
     content.innerHTML = `
       <div class="space-y-6">
-        <!-- Week Summary -->
+        <!-- Week Summary with Navigation -->
         <div class="bg-white rounded-lg shadow-sm p-6">
-          <h3 class="text-lg font-bold text-gray-800 mb-4">
-            <i class="fas fa-calendar-week mr-2 text-blue-500"></i>
-            주간 요약 (${startDateStr} ~ ${endDateStr})
-          </h3>
+          <div class="flex items-center justify-between mb-4">
+            <button 
+              onclick="navigateWeeklyStats('prev')" 
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+            >
+              <i class="fas fa-chevron-left mr-2"></i>이전 주
+            </button>
+            
+            <div class="text-center">
+              <h3 class="text-lg font-bold text-gray-800">
+                <i class="fas fa-calendar-week mr-2 text-blue-500"></i>
+                주간 통계
+              </h3>
+              <div class="text-sm text-gray-600 mt-1">
+                ${startDateStr} ~ ${endDateStr}
+              </div>
+            </div>
+            
+            <button 
+              onclick="navigateWeeklyStats('next')" 
+              class="px-4 py-2 rounded-lg transition ${isThisWeek ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200'}"
+              ${isThisWeek ? 'disabled' : ''}
+            >
+              다음 주<i class="fas fa-chevron-right ml-2"></i>
+            </button>
+          </div>
           
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="text-center p-4 bg-blue-50 rounded-lg">
@@ -2152,35 +2250,77 @@ async function loadWeeklyStats() {
   }
 }
 
+// 월별 통계 네비게이션
+function navigateMonthlyStats(direction) {
+  const months = direction === 'prev' ? -1 : 1
+  currentStatsDate.setMonth(currentStatsDate.getMonth() + months)
+  loadMonthlyStats()
+}
+
 // 월별 통계 로드
 async function loadMonthlyStats() {
   try {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = (today.getMonth() + 1).toString().padStart(2, '0')
+    const baseDate = new Date(currentStatsDate)
+    const year = baseDate.getFullYear()
+    const month = (baseDate.getMonth() + 1).toString().padStart(2, '0')
     
     const response = await axios.get(`${API_BASE}/stats/monthly`, {
       params: { year, month }
     })
     
-    const { summary, daily_trend, best_day, max_streak } = response.data.data
+    const { summary, monthly_trend, best_month, max_streak, period } = response.data.data
+    
+    // 이번 달인지 확인
+    const now = new Date()
+    const isThisMonth = baseDate.getFullYear() === now.getFullYear() && baseDate.getMonth() === now.getMonth()
+    
+    // 기간 포맷 (YYYY-MM-DD -> M월)
+    const formatPeriod = (start, end) => {
+      const startDate = new Date(start)
+      const endDate = new Date(end)
+      const startMonth = `${startDate.getFullYear()}년 ${startDate.getMonth() + 1}월`
+      const endMonth = `${endDate.getFullYear()}년 ${endDate.getMonth() + 1}월`
+      return `${startMonth} ~ ${endMonth}`
+    }
     
     const content = document.getElementById('stats-content')
     content.innerHTML = `
       <div class="space-y-6">
-        <!-- Month Header -->
+        <!-- Month Header with Navigation -->
         <div class="bg-white rounded-lg shadow-sm p-6">
-          <h3 class="text-2xl font-bold text-gray-800 text-center">
-            <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>
-            ${year}년 ${month}월
-          </h3>
+          <div class="flex items-center justify-between mb-2">
+            <button 
+              onclick="navigateMonthlyStats('prev')" 
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+            >
+              <i class="fas fa-chevron-left mr-2"></i>이전 달
+            </button>
+            
+            <div class="text-center">
+              <h3 class="text-2xl font-bold text-gray-800">
+                <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>
+                최근 6개월 추이
+              </h3>
+              <p class="text-sm text-gray-600 mt-1">
+                ${formatPeriod(period.start, period.end)}
+              </p>
+            </div>
+            
+            <button 
+              onclick="navigateMonthlyStats('next')" 
+              class="px-4 py-2 rounded-lg transition ${isThisMonth ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200'}"
+              ${isThisMonth ? 'disabled' : ''}
+            >
+              다음 달<i class="fas fa-chevron-right ml-2"></i>
+            </button>
+          </div>
         </div>
 
         <!-- Monthly Summary -->
         <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-bold text-gray-800 mb-4">
             <i class="fas fa-chart-pie mr-2 text-purple-500"></i>
-            월간 요약
+            6개월 통계 요약
           </h3>
           
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -2215,23 +2355,23 @@ async function loadMonthlyStats() {
         <div class="bg-white rounded-lg shadow-sm p-6">
           <h3 class="text-lg font-bold text-gray-800 mb-4">
             <i class="fas fa-chart-area mr-2 text-green-500"></i>
-            월간 완료율 추이
+            월별 완료율 추이
           </h3>
           <canvas id="monthly-chart"></canvas>
         </div>
 
-        <!-- Best Day -->
-        ${best_day ? `
+        <!-- Best Month -->
+        ${best_month ? `
           <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg shadow-sm p-6">
             <div class="flex items-center">
               <i class="fas fa-medal text-4xl text-yellow-500 mr-4"></i>
               <div>
-                <h3 class="text-lg font-bold text-gray-800">최고 완료율 날짜</h3>
+                <h3 class="text-lg font-bold text-gray-800">최고 완료율 월</h3>
                 <p class="text-2xl font-bold text-orange-600 mt-1">
-                  ${formatDate(best_day.task_date)}
+                  ${formatMonthKorean(best_month.month)}
                 </p>
                 <p class="text-sm text-gray-600 mt-1">
-                  완료율: ${best_day.completion_rate}% (${best_day.completed_tasks}/${best_day.total_tasks})
+                  완료율: ${best_month.completion_rate}% (${best_month.completed_tasks}/${best_month.total_tasks})
                 </p>
               </div>
             </div>
@@ -2240,8 +2380,8 @@ async function loadMonthlyStats() {
       </div>
     `
     
-    // Draw Chart
-    drawMonthlyChart(daily_trend)
+    // Draw Chart with monthly data
+    drawMonthlyChart(monthly_trend)
   } catch (error) {
     console.error('Load monthly stats error:', error)
     showToast('월별 통계 로드 실패', 'error')
@@ -2258,8 +2398,25 @@ function drawDailyChart(data) {
     statsChartInstance.destroy()
   }
   
-  const labels = data.map(d => formatShortDate(d.task_date))
-  const completionRates = data.map(d => d.completion_rate || 0)
+  // Generate all 7 days (past to present)
+  const endDate = new Date(currentStatsDate)
+  const startDate = new Date(currentStatsDate.getTime() - 6 * 24 * 60 * 60 * 1000)
+  
+  const allDays = []
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(startDate)
+    date.setDate(startDate.getDate() + i)
+    allDays.push(date.toISOString().split('T')[0])
+  }
+  
+  // Map data to all days
+  const dataMap = {}
+  data.forEach(d => {
+    dataMap[d.task_date] = d.completion_rate || 0
+  })
+  
+  const labels = allDays.map(d => formatShortDate(d))
+  const completionRates = allDays.map(d => dataMap[d] || 0)
   
   statsChartInstance = new Chart(ctx, {
     type: 'line',
@@ -2304,8 +2461,32 @@ function drawWeeklyChart(data) {
     statsChartInstance.destroy()
   }
   
-  const labels = data.map(d => formatShortDate(d.task_date))
-  const completionRates = data.map(d => d.completion_rate || 0)
+  // Generate Monday to Sunday (7 days)
+  const baseDate = new Date(currentStatsDate)
+  const dayOfWeek = baseDate.getDay()
+  const startDate = new Date(baseDate)
+  startDate.setDate(baseDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)) // Monday
+  
+  const allDays = []
+  const dayNames = ['월', '화', '수', '목', '금', '토', '일']
+  
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(startDate)
+    date.setDate(startDate.getDate() + i)
+    allDays.push({
+      date: date.toISOString().split('T')[0],
+      dayName: dayNames[i]
+    })
+  }
+  
+  // Map data to all days
+  const dataMap = {}
+  data.forEach(d => {
+    dataMap[d.task_date] = d.completion_rate || 0
+  })
+  
+  const labels = allDays.map(d => d.dayName)
+  const completionRates = allDays.map(d => dataMap[d.date] || 0)
   
   statsChartInstance = new Chart(ctx, {
     type: 'bar',
@@ -2349,8 +2530,30 @@ function drawMonthlyChart(data) {
     statsChartInstance.destroy()
   }
   
-  const labels = data.map(d => new Date(d.task_date).getDate() + '일')
-  const completionRates = data.map(d => d.completion_rate || 0)
+  // Generate all 6 months
+  const baseDate = new Date(currentStatsDate)
+  const currentYear = baseDate.getFullYear()
+  const currentMonth = baseDate.getMonth() + 1
+  
+  const allMonths = []
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(currentYear, currentMonth - 1 - i, 1)
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    allMonths.push(yearMonth)
+  }
+  
+  // Map data to all months
+  const dataMap = {}
+  data.forEach(d => {
+    dataMap[d.month] = d.completion_rate || 0
+  })
+  
+  // X축: 월 (YYYY-MM 형식 -> M월)
+  const labels = allMonths.map(m => {
+    const [year, month] = m.split('-')
+    return `${parseInt(month)}월`
+  })
+  const completionRates = allMonths.map(m => dataMap[m] || 0)
   
   statsChartInstance = new Chart(ctx, {
     type: 'line',
@@ -2395,6 +2598,20 @@ function formatDate(dateStr) {
   const day = date.getDate()
   const dayOfWeek = days[date.getDay()]
   return `${month}월 ${day}일 (${dayOfWeek})`
+}
+
+function formatMonthKorean(monthStr) {
+  const [year, month] = monthStr.split('-')
+  return `${year}년 ${parseInt(month)}월`
+}
+
+function formatTime(dateTimeStr) {
+  const date = new Date(dateTimeStr)
+  const hours = date.getHours()
+  const minutes = date.getMinutes()
+  const formattedHours = hours.toString().padStart(2, '0')
+  const formattedMinutes = minutes.toString().padStart(2, '0')
+  return `${formattedHours}:${formattedMinutes}`
 }
 
 function formatShortDate(dateStr) {
