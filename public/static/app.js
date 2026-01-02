@@ -585,10 +585,7 @@ function renderLetGoList(elementId, tasks) {
 function renderTop3List(tasks) {
   const list = document.getElementById('top3-list')
   
-  // 🔴 핵심 수정: 완료된 항목은 제외
-  const activeTasks = tasks.filter(task => task.status !== 'COMPLETED')
-  
-  if (activeTasks.length === 0) {
+  if (tasks.length === 0) {
     list.innerHTML = `
       <div class="empty-state card">
         <i class="fas fa-star"></i>
@@ -599,27 +596,51 @@ function renderTop3List(tasks) {
     return
   }
   
-  list.innerHTML = activeTasks.map((task, index) => `
-    <div class="top3-item fade-in ${task.status === 'COMPLETED' ? 'opacity-75' : ''}">
+  // ✅ 개선: 완료된 항목도 표시하되, 진행 중 항목을 먼저 표시
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.status === 'COMPLETED' && b.status !== 'COMPLETED') return 1
+    if (a.status !== 'COMPLETED' && b.status === 'COMPLETED') return -1
+    return a.top3_order - b.top3_order
+  })
+  
+  list.innerHTML = sortedTasks.map((task, index) => {
+    const isCompleted = task.status === 'COMPLETED'
+    const displayNumber = task.top3_order || (index + 1)
+    
+    return `
+    <div class="top3-item fade-in ${isCompleted ? 'bg-green-50 border-green-200' : ''}">
       <div class="flex items-start justify-between mb-3">
         <div class="flex items-start flex-1">
-          <span class="top3-number">${index + 1}</span>
+          <span class="top3-number ${isCompleted ? 'bg-green-500' : ''}">${displayNumber}</span>
           <div class="flex-1">
-            <h3 class="top3-title ${task.status === 'COMPLETED' ? 'line-through' : ''}">${task.title}</h3>
-            ${task.description ? `<p class="text-sm opacity-90 mt-1">${task.description}</p>` : ''}
+            <h3 class="top3-title ${isCompleted ? 'line-through text-gray-500' : ''}">${task.title}</h3>
+            ${task.description ? `<p class="text-sm mt-1 ${isCompleted ? 'line-through text-gray-400' : 'opacity-90'}">${task.description}</p>` : ''}
+            ${isCompleted ? `
+              <div class="mt-2 flex items-center gap-2">
+                <span class="text-xs font-semibold text-green-600">
+                  <i class="fas fa-check-circle mr-1"></i>완료됨
+                </span>
+                ${task.completed_at ? `
+                  <span class="text-xs text-gray-500">
+                    ${formatTime(task.completed_at)}
+                  </span>
+                ` : ''}
+              </div>
+            ` : ''}
           </div>
         </div>
-        <button onclick="${task.status === 'COMPLETED' ? `uncompleteTask(${task.task_id})` : `completeTask(${task.task_id})`}" 
-          class="text-3xl transition-all hover:scale-110 ${task.status === 'COMPLETED' ? 'text-green-300' : 'text-white/50 hover:text-white'}">
+        <button onclick="${isCompleted ? `uncompleteTask(${task.task_id})` : `completeTask(${task.task_id})`}" 
+          class="text-3xl transition-all hover:scale-110 ${isCompleted ? 'text-green-500' : 'text-white/50 hover:text-white'}">
           <i class="fas fa-check-circle"></i>
         </button>
       </div>
       ${task.action_detail ? `
-        <div class="top3-detail">
+        <div class="top3-detail ${isCompleted ? 'opacity-60' : ''}">
           <i class="fas fa-clipboard-list mr-1"></i>
           ${task.action_detail}
         </div>
       ` : ''}
+      ${!isCompleted ? `
       <div class="mt-3 flex items-center gap-2">
         ${task.time_slot ? `
           <span class="time-badge">
@@ -631,14 +652,11 @@ function renderTop3List(tasks) {
             <i class="far fa-clock"></i> ${task.estimated_time}
           </span>
         ` : ''}
-        ${task.completed_at ? `
-          <span class="time-badge">
-            <i class="fas fa-check"></i> 완료됨
-          </span>
-        ` : ''}
       </div>
+      ` : ''}
     </div>
-  `).join('')
+    `
+  }).join('')
 }
 
 // Render statistics
@@ -2503,6 +2521,15 @@ function formatDate(dateStr) {
   const day = date.getDate()
   const dayOfWeek = days[date.getDay()]
   return `${month}월 ${day}일 (${dayOfWeek})`
+}
+
+function formatTime(dateTimeStr) {
+  const date = new Date(dateTimeStr)
+  const hours = date.getHours()
+  const minutes = date.getMinutes()
+  const formattedHours = hours.toString().padStart(2, '0')
+  const formattedMinutes = minutes.toString().padStart(2, '0')
+  return `${formattedHours}:${formattedMinutes}`
 }
 
 function formatShortDate(dateStr) {
