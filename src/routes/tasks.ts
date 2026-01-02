@@ -14,6 +14,14 @@ import { successResponse, errorResponse, getCurrentDate, getCurrentDateTime } fr
 
 const tasks = new Hono<{ Bindings: Env }>()
 
+// Helper function to convert undefined/empty string to null
+const toNull = (value: any): any => {
+  if (value === undefined || value === null || value === '') {
+    return null
+  }
+  return value
+}
+
 // Apply auth middleware to all routes
 tasks.use('/*', authMiddleware)
 
@@ -70,7 +78,7 @@ tasks.patch('/:taskId/categorize', async (c) => {
       UPDATE daily_tasks 
       SET step = 'CATEGORIZE', priority = ?, estimated_time = ?, updated_at = ?
       WHERE task_id = ?
-    `).bind(priority, estimated_time, getCurrentDateTime(), taskId).run()
+    `).bind(toNull(priority), toNull(estimated_time), getCurrentDateTime(), taskId).run()
 
     // If priority is LET_GO, also add to let_go_items table
     if (priority === 'LET_GO') {
@@ -153,7 +161,7 @@ tasks.patch('/:taskId/top3', async (c) => {
       UPDATE daily_tasks 
       SET step = 'ACTION', is_top3 = 1, top3_order = ?, action_detail = ?, time_slot = ?, updated_at = ?
       WHERE task_id = ?
-    `).bind(order, action_detail, time_slot, getCurrentDateTime(), taskId).run()
+    `).bind(order, toNull(action_detail), toNull(time_slot), getCurrentDateTime(), taskId).run()
 
     const updatedTask = await c.env.DB.prepare(
       'SELECT * FROM daily_tasks WHERE task_id = ?'
@@ -299,31 +307,31 @@ tasks.put('/:taskId', async (c) => {
 
     if (body.title !== undefined) {
       updates.push('title = ?')
-      values.push(body.title)
+      values.push(toNull(body.title))
     }
     if (body.description !== undefined) {
       updates.push('description = ?')
-      values.push(body.description)
+      values.push(toNull(body.description))
     }
     if (body.priority !== undefined) {
       updates.push('priority = ?')
-      values.push(body.priority)
+      values.push(toNull(body.priority))
     }
     if (body.estimated_time !== undefined) {
       updates.push('estimated_time = ?')
-      values.push(body.estimated_time)
+      values.push(toNull(body.estimated_time))
     }
     if (body.status !== undefined) {
       updates.push('status = ?')
-      values.push(body.status)
+      values.push(toNull(body.status))
     }
     if (body.time_slot !== undefined) {
       updates.push('time_slot = ?')
-      values.push(body.time_slot || null)
+      values.push(toNull(body.time_slot))
     }
     if (body.due_date !== undefined) {
       updates.push('due_date = ?')
-      values.push(body.due_date || null)
+      values.push(toNull(body.due_date))
     }
 
     if (updates.length === 0) {
