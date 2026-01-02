@@ -508,16 +508,26 @@ function renderCategorizedLists(data) {
 function renderTaskList(elementId, tasks) {
   const list = document.getElementById(elementId)
   
-  // 🔴 핵심 수정: step='ACTION'인 항목(이미 TOP 3로 설정됨)은 제외
-  const filteredTasks = tasks.filter(task => task.step !== 'ACTION' && task.status !== 'COMPLETED')
+  // ✅ 개선: 완료된 항목만 제외, TOP 3 설정된 항목은 표시 (흐리게)
+  const filteredTasks = tasks.filter(task => task.status !== 'COMPLETED')
   
   if (filteredTasks.length === 0) {
     list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">없음</div>'
     return
   }
   
-  list.innerHTML = filteredTasks.map(task => `
-    <div class="task-item bg-white fade-in">
+  list.innerHTML = filteredTasks.map(task => {
+    const isSelected = task.step === 'ACTION'
+    
+    return `
+    <div class="task-item fade-in ${isSelected ? 'opacity-50 bg-green-50 border-green-200' : 'bg-white'}">
+      ${isSelected ? `
+        <div class="text-xs text-green-600 font-semibold mb-2 flex items-center">
+          <i class="fas fa-check-circle mr-1"></i>
+          <span>TOP 3로 선택됨</span>
+        </div>
+      ` : ''}
+      
       <div class="flex items-start justify-between gap-2 mb-2">
         <div class="flex-1">
           <div class="font-medium text-gray-800 text-sm">${task.title}</div>
@@ -530,28 +540,33 @@ function renderTaskList(elementId, tasks) {
             </div>
           ` : ''}
         </div>
-        <div class="flex gap-1">
-          <button onclick="openEditTaskModal(${task.task_id})" 
-            class="text-gray-400 hover:text-blue-500 transition-colors" title="수정">
-            <i class="fas fa-edit text-sm"></i>
-          </button>
-          <button onclick="deleteTask(${task.task_id})" 
-            class="text-gray-400 hover:text-red-500 transition-colors" title="삭제">
-            <i class="fas fa-times text-sm"></i>
-          </button>
-        </div>
+        ${!isSelected ? `
+          <div class="flex gap-1">
+            <button onclick="openEditTaskModal(${task.task_id})" 
+              class="text-gray-400 hover:text-blue-500 transition-colors" title="수정">
+              <i class="fas fa-edit text-sm"></i>
+            </button>
+            <button onclick="deleteTask(${task.task_id})" 
+              class="text-gray-400 hover:text-red-500 transition-colors" title="삭제">
+              <i class="fas fa-times text-sm"></i>
+            </button>
+          </div>
+        ` : ''}
       </div>
       ${task.estimated_time ? `
         <div class="text-xs text-gray-600 mb-2">
           <i class="far fa-clock"></i> ${task.estimated_time}
         </div>
       ` : ''}
-      <button onclick="promptSetTop3(${task.task_id})" 
-        class="btn btn-primary text-xs py-1 px-3">
-        <i class="fas fa-star mr-1"></i> TOP 3 설정
-      </button>
+      ${!isSelected ? `
+        <button onclick="promptSetTop3(${task.task_id})" 
+          class="btn btn-primary text-xs py-1 px-3">
+          <i class="fas fa-star mr-1"></i> TOP 3 설정
+        </button>
+      ` : ''}
     </div>
-  `).join('')
+    `
+  }).join('')
 }
 
 // Render let go list (내려놓기)
@@ -636,8 +651,19 @@ function renderTop3List(tasks) {
       </div>
       ${task.action_detail ? `
         <div class="top3-detail ${isCompleted ? 'opacity-60' : ''}">
-          <i class="fas fa-clipboard-list mr-1"></i>
-          ${task.action_detail}
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-gray-600">
+              <i class="fas fa-clipboard-list mr-1"></i>행동 계획
+            </span>
+            ${!isCompleted ? `
+              <span class="text-xs text-gray-500">
+                <i class="fas fa-lock mr-1"></i>수정 불가
+              </span>
+            ` : ''}
+          </div>
+          <div class="text-sm">
+            ${task.action_detail}
+          </div>
         </div>
       ` : ''}
       ${!isCompleted ? `
