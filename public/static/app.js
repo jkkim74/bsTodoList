@@ -2398,8 +2398,25 @@ function drawDailyChart(data) {
     statsChartInstance.destroy()
   }
   
-  const labels = data.map(d => formatShortDate(d.task_date))
-  const completionRates = data.map(d => d.completion_rate || 0)
+  // Generate all 7 days (past to present)
+  const endDate = new Date(currentStatsDate)
+  const startDate = new Date(currentStatsDate.getTime() - 6 * 24 * 60 * 60 * 1000)
+  
+  const allDays = []
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(startDate)
+    date.setDate(startDate.getDate() + i)
+    allDays.push(date.toISOString().split('T')[0])
+  }
+  
+  // Map data to all days
+  const dataMap = {}
+  data.forEach(d => {
+    dataMap[d.task_date] = d.completion_rate || 0
+  })
+  
+  const labels = allDays.map(d => formatShortDate(d))
+  const completionRates = allDays.map(d => dataMap[d] || 0)
   
   statsChartInstance = new Chart(ctx, {
     type: 'line',
@@ -2444,8 +2461,32 @@ function drawWeeklyChart(data) {
     statsChartInstance.destroy()
   }
   
-  const labels = data.map(d => formatShortDate(d.task_date))
-  const completionRates = data.map(d => d.completion_rate || 0)
+  // Generate Monday to Sunday (7 days)
+  const baseDate = new Date(currentStatsDate)
+  const dayOfWeek = baseDate.getDay()
+  const startDate = new Date(baseDate)
+  startDate.setDate(baseDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)) // Monday
+  
+  const allDays = []
+  const dayNames = ['월', '화', '수', '목', '금', '토', '일']
+  
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(startDate)
+    date.setDate(startDate.getDate() + i)
+    allDays.push({
+      date: date.toISOString().split('T')[0],
+      dayName: dayNames[i]
+    })
+  }
+  
+  // Map data to all days
+  const dataMap = {}
+  data.forEach(d => {
+    dataMap[d.task_date] = d.completion_rate || 0
+  })
+  
+  const labels = allDays.map(d => d.dayName)
+  const completionRates = allDays.map(d => dataMap[d.date] || 0)
   
   statsChartInstance = new Chart(ctx, {
     type: 'bar',
@@ -2489,12 +2530,30 @@ function drawMonthlyChart(data) {
     statsChartInstance.destroy()
   }
   
+  // Generate all 6 months
+  const baseDate = new Date(currentStatsDate)
+  const currentYear = baseDate.getFullYear()
+  const currentMonth = baseDate.getMonth() + 1
+  
+  const allMonths = []
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(currentYear, currentMonth - 1 - i, 1)
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    allMonths.push(yearMonth)
+  }
+  
+  // Map data to all months
+  const dataMap = {}
+  data.forEach(d => {
+    dataMap[d.month] = d.completion_rate || 0
+  })
+  
   // X축: 월 (YYYY-MM 형식 -> M월)
-  const labels = data.map(d => {
-    const [year, month] = d.month.split('-')
+  const labels = allMonths.map(m => {
+    const [year, month] = m.split('-')
     return `${parseInt(month)}월`
   })
-  const completionRates = data.map(d => d.completion_rate || 0)
+  const completionRates = allMonths.map(m => dataMap[m] || 0)
   
   statsChartInstance = new Chart(ctx, {
     type: 'line',

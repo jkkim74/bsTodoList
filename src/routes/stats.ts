@@ -34,7 +34,7 @@ stats.get('/daily', async (c) => {
       WHERE user_id = ? 
         AND task_date BETWEEN ? AND ?
       GROUP BY task_date
-      ORDER BY task_date DESC
+      ORDER BY task_date ASC
     `).bind(userId, startDate, endDate).all()
     
     return successResponse(c, dailyStats.results)
@@ -120,11 +120,11 @@ stats.get('/monthly', async (c) => {
     const month = parseInt(c.req.query('month') || (new Date().getMonth() + 1).toString())
     
     // Calculate 6 months range (current month - 5 months)
-    const endDate = new Date(year, month - 1, 1) // Current month start
-    const startDate = new Date(year, month - 6, 1) // 6 months ago
+    const startDate = new Date(year, month - 6, 1) // 6 months ago start
+    const endDate = new Date(year, month, 0) // Current month last day
     
     const startDateStr = startDate.toISOString().split('T')[0]
-    const endDateStr = new Date(year, month, 0).toISOString().split('T')[0] // Last day of current month
+    const endDateStr = endDate.toISOString().split('T')[0]
     
     // Monthly trend (group by year-month)
     const monthlyTrend = await c.env.DB.prepare(`
