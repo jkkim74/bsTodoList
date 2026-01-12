@@ -1,0 +1,39 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#4F46E5" rx="100"/>
+  
+  <!-- Brain Icon -->
+  <g transform="translate(256, 256)">
+    <!-- Left Brain -->
+    <path d="M -80 -100 Q -120 -100 -120 -60 Q -120 -20 -100 0 Q -120 20 -120 60 Q -120 100 -80 100 Q -60 100 -40 80 Q -20 60 0 60 L 0 -60 Q -20 -60 -40 -80 Q -60 -100 -80 -100 Z" 
+          fill="#FFFFFF" opacity="0.95"/>
+    
+    <!-- Right Brain -->
+    <path d="M 80 -100 Q 120 -100 120 -60 Q 120 -20 100 0 Q 120 20 120 60 Q 120 100 80 100 Q 60 100 40 80 Q 20 60 0 60 L 0 -60 Q 20 -60 40 -80 Q 60 -100 80 -100 Z" 
+          fill="#FFFFFF" opacity="0.95"/>
+    
+    <!-- Check Mark -->
+    <path d="M -30 20 L -10 40 L 40 -20" 
+          stroke="#4F46E5" 
+          stroke-width="20" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" 
+          fill="none"/>
+    
+    <!-- Details (synapses) -->
+    <circle cx="-60" cy="-40" r="8" fill="#4F46E5" opacity="0.6"/>
+    <circle cx="-40" cy="0" r="6" fill="#4F46E5" opacity="0.6"/>
+    <circle cx="-60" cy="40" r="8" fill="#4F46E5" opacity="0.6"/>
+    <circle cx="60" cy="-40" r="8" fill="#4F46E5" opacity="0.6"/>
+    <circle cx="40" cy="0" r="6" fill="#4F46E5" opacity="0.6"/>
+    <circle cx="60" cy="40" r="8" fill="#4F46E5" opacity="0.6"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="256" y="420" 
+        font-family="Arial, sans-serif" 
+        font-size="60" 
+        font-weight="bold" 
+        fill="#FFFFFF" 
+        text-anchor="middle">BD</text>
+</svg>
