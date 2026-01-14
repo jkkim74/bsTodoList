@@ -6,10 +6,10 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     // Production: use app assets
-    androidScheme: 'https',
+    // androidScheme: 'https',
     // Development: comment out for local testing
-    // url: 'http://192.168.1.100:3000',
-    // cleartext: true
+     url: 'https://webapp-tvo.pages.dev',
+     cleartext: true
   },
   plugins: {
     SplashScreen: {
