@@ -101,13 +101,15 @@ function renderApp() {
 // Login page
 function renderLoginPage() {
   return `
-   <div class="min-h-screen flex items-center justify-center py-16"
+   <div class="min-h-screen flex justify-center
+            px-5 pt-20 pb-12
+            sm:items-center sm:py-16"
      style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
 
-  <div class="card max-w-md w-full min-h-[60vh] p-8">
-    
+  <div class="card w-full max-w-md rounded-2xl p-6 sm:p-8 bg-white">
+
     <div class="text-center mb-8">
-      <h1 class="text-4xl font-bold mb-2" style="color: #2c5f2d;">
+      <h1 class="text-3xl sm:text-4xl font-bold mb-2 text-[#2c5f2d]">
         <i class="fas fa-brain mr-2"></i>
         Brain Dump
       </h1>
