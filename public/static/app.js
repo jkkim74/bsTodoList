@@ -106,7 +106,7 @@ function renderLoginPage() {
         <div class="text-center mb-8">
           <h1 class="text-4xl font-bold mb-2" style="color: #2c5f2d;">
             <i class="fas fa-brain mr-2"></i>
-            브레인 덤핑 TO_DO_LIST
+            Brain Dumping
           </h1>
           <p class="text-gray-600 text-sm">생각을 꺼내고, 정리하고, 실행하는 3단계 시스템</p>
         </div>
