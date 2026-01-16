@@ -101,50 +101,73 @@ function renderApp() {
 // Login page
 function renderLoginPage() {
   return `
-    <div class="min-h-screen flex items-center justify-center p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-      <div class="card max-w-md w-full">
-        <div class="text-center mb-8">
-          <h1 class="text-4xl font-bold mb-2" style="color: #2c5f2d;">
-            <i class="fas fa-brain mr-2"></i>
-            Brain Dumping
-          </h1>
-          <p class="text-gray-600 text-sm">생각을 꺼내고, 정리하고, 실행하는 3단계 시스템</p>
-        </div>
-        
-        <div id="auth-form">
-          <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-medium mb-2">
-              <i class="fas fa-envelope mr-1"></i> 이메일
-            </label>
-            <input type="email" id="email" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="아이디 입력">
-          </div>
-          
-          <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-medium mb-2">
-              <i class="fas fa-lock mr-1"></i> 비밀번호
-            </label>
-            <input type="password" id="password" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="비밀번호 입력">
-          </div>
-          
-          <div class="mb-6" id="username-field" style="display:none;">
-            <label class="block text-gray-700 text-sm font-medium mb-2">
-              <i class="fas fa-user mr-1"></i> 이름
-            </label>
-            <input type="text" id="username" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="홍길동">
-          </div>
-          
-          <div id="error-message" class="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded hidden"></div>
-          
-          <button onclick="handleLogin()" id="login-btn" class="w-full btn btn-primary mb-3 py-3">
-            <i class="fas fa-sign-in-alt mr-2"></i> 로그인
-          </button>
-          
-          <button onclick="toggleSignup()" id="toggle-btn" class="w-full btn btn-secondary py-3">
-            <i class="fas fa-user-plus mr-2"></i> 회원가입
-          </button>
-        </div>
-      </div>
+   <div class="min-h-screen flex items-center justify-center py-16"
+     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+
+  <div class="card max-w-md w-full min-h-[60vh] p-8">
+    
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold mb-2" style="color: #2c5f2d;">
+        <i class="fas fa-brain mr-2"></i>
+        Brain Dump
+      </h1>
+      <p class="text-gray-600 text-sm">
+        생각을 꺼내고, 정리하고, 실행하는 3단계 시스템
+      </p>
     </div>
+    
+    <div id="auth-form">
+      
+      <div class="mb-6">
+        <label class="block text-gray-700 text-sm font-medium mb-2">
+          <i class="fas fa-envelope mr-1"></i> 이메일
+        </label>
+        <input type="email" id="email"
+               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg
+                      focus:outline-none focus:border-primary transition-colors"
+               placeholder="아이디 입력">
+      </div>
+      
+      <div class="mb-6">
+        <label class="block text-gray-700 text-sm font-medium mb-2">
+          <i class="fas fa-lock mr-1"></i> 비밀번호
+        </label>
+        <input type="password" id="password"
+               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg
+                      focus:outline-none focus:border-primary transition-colors"
+               placeholder="비밀번호 입력">
+      </div>
+      
+      <div class="mb-6" id="username-field" style="display:none;">
+        <label class="block text-gray-700 text-sm font-medium mb-2">
+          <i class="fas fa-user mr-1"></i> 이름
+        </label>
+        <input type="text" id="username"
+               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg
+                      focus:outline-none focus:border-primary transition-colors"
+               placeholder="홍길동">
+      </div>
+      
+      <div id="error-message"
+           class="mb-4 p-3 bg-red-50 border-l-4 border-red-500
+                  text-red-700 text-sm rounded hidden">
+      </div>
+      
+      <button onclick="handleLogin()"
+              id="login-btn"
+              class="w-full btn btn-primary mb-4 py-3">
+        <i class="fas fa-sign-in-alt mr-2"></i> 로그인
+      </button>
+      
+      <button onclick="toggleSignup()"
+              id="toggle-btn"
+              class="w-full btn btn-secondary py-3">
+        <i class="fas fa-user-plus mr-2"></i> 회원가입
+      </button>
+      
+    </div>
+  </div>
+</div>
   `
 }
 
