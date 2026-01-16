@@ -254,7 +254,7 @@ function renderMainPage() {
             <!-- Title -->
             <h1 class="text-xl md:text-2xl font-bold flex items-center" style="color: #2c5f2d;">
               <i class="fas fa-brain mr-2"></i>
-              <span class="hidden sm:inline">브레인 덤핑 TO_DO_LIST</span>
+              <span class="hidden sm:inline">Brain Dump</span>
               <span class="sm:hidden">Brain Dump</span>
             </h1>
             
