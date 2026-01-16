@@ -120,6 +120,7 @@ function renderLoginPage() {
     
     <div id="auth-form">
       
+      <!-- Email -->
       <div class="mb-6">
         <label class="block text-gray-700 text-sm font-medium mb-2">
           <i class="fas fa-envelope mr-1"></i> 이메일
@@ -127,9 +128,12 @@ function renderLoginPage() {
         <input type="email" id="email"
                class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg
                       focus:outline-none focus:border-primary transition-colors"
-               placeholder="아이디 입력">
+               placeholder="example@email.com"
+               onchange="validateEmailField()">
+        <div id="email-error" class="text-red-600 text-xs mt-1 hidden"></div>
       </div>
       
+      <!-- Password -->
       <div class="mb-6">
         <label class="block text-gray-700 text-sm font-medium mb-2">
           <i class="fas fa-lock mr-1"></i> 비밀번호
@@ -137,9 +141,57 @@ function renderLoginPage() {
         <input type="password" id="password"
                class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg
                       focus:outline-none focus:border-primary transition-colors"
-               placeholder="비밀번호 입력">
+               placeholder="비밀번호 입력"
+               onchange="validatePasswordField()">
+        <div id="password-error" class="text-red-600 text-xs mt-1 hidden"></div>
+        <!-- Password strength indicator (signup only) -->
+        <div id="password-strength" class="mt-2 hidden">
+          <div class="text-xs text-gray-600 mb-1">강도:</div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div id="strength-bar" class="h-2 rounded-full transition-all" style="width: 0%"></div>
+          </div>
+          <div id="strength-text" class="text-xs mt-1"></div>
+        </div>
+        <!-- Password requirements (signup only) -->
+        <div id="password-requirements" class="mt-3 hidden text-xs space-y-1">
+          <div class="flex items-center gap-2">
+            <span id="req-length" class="text-gray-400">✓</span>
+            <span>최소 8자 이상</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="req-uppercase" class="text-gray-400">✓</span>
+            <span>대문자 포함</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="req-lowercase" class="text-gray-400">✓</span>
+            <span>소문자 포함</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="req-number" class="text-gray-400">✓</span>
+            <span>숫자 포함</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="req-special" class="text-gray-400">✓</span>
+            <span>특수문자 포함 (!@#$%^&* 등)</span>
+          </div>
+        </div>
       </div>
       
+      <!-- Password Confirm (signup only) -->
+      <div class="mb-6" id="password-confirm-field" style="display:none;">
+        <label class="block text-gray-700 text-sm font-medium mb-2">
+          <i class="fas fa-check-circle mr-1"></i> 비밀번호 재입력
+        </label>
+        <input type="password" id="password_confirm"
+               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg
+                      focus:outline-none focus:border-primary transition-colors"
+               placeholder="비밀번호 재입력"
+               onchange="validatePasswordConfirmField()">
+        <div id="password-confirm-error" class="text-red-600 text-xs mt-1 hidden"></div>
+        <div id="password-match" class="text-green-600 text-xs mt-1 hidden">✓ 비밀번호가 일치합니다</div>
+      </div>
+      
+      <!-- Username (signup only) -->
       <div class="mb-6" id="username-field" style="display:none;">
         <label class="block text-gray-700 text-sm font-medium mb-2">
           <i class="fas fa-user mr-1"></i> 이름
@@ -148,14 +200,35 @@ function renderLoginPage() {
                class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg
                       focus:outline-none focus:border-primary transition-colors"
                placeholder="홍길동">
+        <div id="username-error" class="text-red-600 text-xs mt-1 hidden"></div>
       </div>
       
+      <!-- Verification Code (signup step 2 only) -->
+      <div class="mb-6" id="verification-code-field" style="display:none;">
+        <label class="block text-gray-700 text-sm font-medium mb-2">
+          <i class="fas fa-key mr-1"></i> 인증 코드
+        </label>
+        <input type="text" id="verification_code"
+               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg
+                      focus:outline-none focus:border-primary transition-colors"
+               placeholder="인증 코드 입력 (6자리)">
+        <div id="verification-code-error" class="text-red-600 text-xs mt-1 hidden"></div>
+        <div class="text-xs text-gray-500 mt-1">이메일로 발송된 6자리 코드를 입력해주세요.</div>
+      </div>
+      
+      <!-- Error/Success Messages -->
       <div id="error-message"
            class="mb-4 p-3 bg-red-50 border-l-4 border-red-500
                   text-red-700 text-sm rounded hidden">
       </div>
       
-      <button onclick="handleLogin()"
+      <div id="success-message"
+           class="mb-4 p-3 bg-green-50 border-l-4 border-green-500
+                  text-green-700 text-sm rounded hidden">
+      </div>
+      
+      <!-- Action Buttons -->
+      <button onclick="handleLoginOrSignup()"
               id="login-btn"
               class="w-full btn btn-primary mb-4 py-3">
         <i class="fas fa-sign-in-alt mr-2"></i> 로그인
@@ -174,30 +247,196 @@ function renderLoginPage() {
 }
 
 let isSignupMode = false
+let signupStep = 1 // Step 1: Basic info, Step 2: Verification
 
 function toggleSignup() {
   isSignupMode = !isSignupMode
+  signupStep = 1
+  resetAuthForm()
+  updateAuthFormUI()
+}
+
+function resetAuthForm() {
+  document.getElementById('email').value = ''
+  document.getElementById('password').value = ''
+  document.getElementById('password_confirm').value = ''
+  document.getElementById('username').value = ''
+  document.getElementById('verification_code').value = ''
+  document.getElementById('error-message').classList.add('hidden')
+  document.getElementById('success-message').classList.add('hidden')
+  document.getElementById('email-error').classList.add('hidden')
+  document.getElementById('password-error').classList.add('hidden')
+  document.getElementById('password-confirm-error').classList.add('hidden')
+  document.getElementById('username-error').classList.add('hidden')
+  document.getElementById('verification-code-error').classList.add('hidden')
+  document.getElementById('password-match').classList.add('hidden')
+}
+
+function updateAuthFormUI() {
   const usernameField = document.getElementById('username-field')
+  const passwordConfirmField = document.getElementById('password-confirm-field')
+  const passwordStrength = document.getElementById('password-strength')
+  const passwordReqs = document.getElementById('password-requirements')
+  const verificationCodeField = document.getElementById('verification-code-field')
   const loginBtn = document.getElementById('login-btn')
   const toggleBtn = document.getElementById('toggle-btn')
   
   if (isSignupMode) {
     usernameField.style.display = 'block'
-    loginBtn.textContent = '회원가입'
-    loginBtn.onclick = handleSignup
+    passwordConfirmField.style.display = 'block'
+    passwordStrength.style.display = 'block'
+    passwordReqs.style.display = 'block'
+    verificationCodeField.style.display = signupStep === 2 ? 'block' : 'none'
+    loginBtn.textContent = signupStep === 1 ? '다음' : '회원가입'
+    loginBtn.onclick = signupStep === 1 ? handleSignupStep1 : handleSignupStep2
     toggleBtn.textContent = '로그인'
   } else {
     usernameField.style.display = 'none'
+    passwordConfirmField.style.display = 'none'
+    passwordStrength.style.display = 'none'
+    passwordReqs.style.display = 'none'
+    verificationCodeField.style.display = 'none'
     loginBtn.textContent = '로그인'
     loginBtn.onclick = handleLogin
     toggleBtn.textContent = '회원가입'
   }
 }
 
+// 🆕 Validation functions
+function validateEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+function validatePasswordStrength(password) {
+  const requirements = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+  }
+  
+  const met = Object.values(requirements).filter(Boolean).length
+  const strength = met <= 2 ? 'weak' : met === 3 ? 'medium' : 'strong'
+  
+  return { requirements, strength, met }
+}
+
+function validateEmailField() {
+  const email = document.getElementById('email').value
+  const emailError = document.getElementById('email-error')
+  
+  if (!email) {
+    emailError.classList.add('hidden')
+    return true
+  }
+  
+  if (!validateEmail(email)) {
+    emailError.textContent = '올바른 이메일 형식이 아닙니다.'
+    emailError.classList.remove('hidden')
+    return false
+  }
+  
+  emailError.classList.add('hidden')
+  return true
+}
+
+function validatePasswordField() {
+  if (!isSignupMode) return true
+  
+  const password = document.getElementById('password').value
+  const passwordError = document.getElementById('password-error')
+  const strengthBar = document.getElementById('strength-bar')
+  const strengthText = document.getElementById('strength-text')
+  
+  if (!password) {
+    passwordError.classList.add('hidden')
+    strengthBar.style.width = '0%'
+    strengthText.textContent = ''
+    return true
+  }
+  
+  const validation = validatePasswordStrength(password)
+  const { requirements, strength, met } = validation
+  
+  // Update requirement indicators
+  document.getElementById('req-length').textContent = requirements.length ? '✓' : '✗'
+  document.getElementById('req-length').style.color = requirements.length ? '#10b981' : '#d1d5db'
+  
+  document.getElementById('req-uppercase').textContent = requirements.uppercase ? '✓' : '✗'
+  document.getElementById('req-uppercase').style.color = requirements.uppercase ? '#10b981' : '#d1d5db'
+  
+  document.getElementById('req-lowercase').textContent = requirements.lowercase ? '✓' : '✗'
+  document.getElementById('req-lowercase').style.color = requirements.lowercase ? '#10b981' : '#d1d5db'
+  
+  document.getElementById('req-number').textContent = requirements.number ? '✓' : '✗'
+  document.getElementById('req-number').style.color = requirements.number ? '#10b981' : '#d1d5db'
+  
+  document.getElementById('req-special').textContent = requirements.special ? '✓' : '✗'
+  document.getElementById('req-special').style.color = requirements.special ? '#10b981' : '#d1d5db'
+  
+  // Update strength bar
+  const strengthPercent = (met / 5) * 100
+  strengthBar.style.width = strengthPercent + '%'
+  strengthBar.className = 'h-2 rounded-full transition-all ' + 
+    (strength === 'weak' ? 'bg-red-500' : strength === 'medium' ? 'bg-yellow-500' : 'bg-green-500')
+  
+  // Update strength text
+  strengthText.textContent = strength === 'weak' ? '약함' : strength === 'medium' ? '중간' : '강함'
+  strengthText.className = 'text-xs mt-1 ' +
+    (strength === 'weak' ? 'text-red-600' : strength === 'medium' ? 'text-yellow-600' : 'text-green-600')
+  
+  // Check if meets minimum requirements
+  if (!requirements.length || !requirements.uppercase || !requirements.lowercase || 
+      !requirements.number || !requirements.special) {
+    passwordError.textContent = '비밀번호는 8자 이상, 대문자, 소문자, 숫자, 특수문자를 포함해야 합니다.'
+    passwordError.classList.remove('hidden')
+    return false
+  }
+  
+  passwordError.classList.add('hidden')
+  return true
+}
+
+function validatePasswordConfirmField() {
+  if (!isSignupMode) return true
+  
+  const password = document.getElementById('password').value
+  const passwordConfirm = document.getElementById('password_confirm').value
+  const confirmError = document.getElementById('password-confirm-error')
+  const matchMsg = document.getElementById('password-match')
+  
+  if (!passwordConfirm) {
+    confirmError.classList.add('hidden')
+    matchMsg.classList.add('hidden')
+    return true
+  }
+  
+  if (password !== passwordConfirm) {
+    confirmError.textContent = '비밀번호가 일치하지 않습니다.'
+    confirmError.classList.remove('hidden')
+    matchMsg.classList.add('hidden')
+    return false
+  }
+  
+  confirmError.classList.add('hidden')
+  matchMsg.classList.remove('hidden')
+  return true
+}
+
 async function handleLogin() {
   const email = document.getElementById('email').value
   const password = document.getElementById('password').value
   const errorDiv = document.getElementById('error-message')
+  
+  errorDiv.classList.add('hidden')
+  
+  if (!email || !password) {
+    errorDiv.textContent = '이메일과 비밀번호를 입력해주세요.'
+    errorDiv.classList.remove('hidden')
+    return
+  }
   
   try {
     const response = await axios.post(`${API_BASE}/auth/login`, { email, password })
@@ -210,26 +449,101 @@ async function handleLogin() {
   }
 }
 
-async function handleSignup() {
+async function handleSignupStep1() {
   const email = document.getElementById('email').value
   const password = document.getElementById('password').value
+  const passwordConfirm = document.getElementById('password_confirm').value
   const username = document.getElementById('username').value
   const errorDiv = document.getElementById('error-message')
+  const successDiv = document.getElementById('success-message')
   
-  if (!username) {
-    errorDiv.textContent = '이름을 입력해주세요'
+  errorDiv.classList.add('hidden')
+  successDiv.classList.add('hidden')
+  
+  // Validation
+  if (!email || !password || !passwordConfirm || !username) {
+    errorDiv.textContent = '모든 필드를 입력해주세요.'
     errorDiv.classList.remove('hidden')
     return
   }
   
+  if (!validateEmailField()) return
+  if (!validatePasswordField()) return
+  if (!validatePasswordConfirmField()) return
+  
+  // Store form data for step 2
+  window.signupFormData = { email, password, passwordConfirm, username }
+  
   try {
-    const response = await axios.post(`${API_BASE}/auth/signup`, { email, password, username })
+    // Request verification code
+    const response = await axios.post(`${API_BASE}/auth/signup/request-verification`, { email })
+    
+    successDiv.textContent = '인증 코드가 발송되었습니다. 이메일을 확인해주세요.'
+    successDiv.classList.remove('hidden')
+    
+    // Move to step 2
+    signupStep = 2
+    updateAuthFormUI()
+    
+    // Clear password fields for security
+    document.getElementById('password').value = ''
+    document.getElementById('password_confirm').value = ''
+  } catch (error) {
+    errorDiv.textContent = error.response?.data?.error || '요청 처리 중 오류가 발생했습니다.'
+    errorDiv.classList.remove('hidden')
+  }
+}
+
+async function handleSignupStep2() {
+  const verificationCode = document.getElementById('verification_code').value
+  const errorDiv = document.getElementById('error-message')
+  const successDiv = document.getElementById('success-message')
+  
+  errorDiv.classList.add('hidden')
+  successDiv.classList.add('hidden')
+  
+  if (!verificationCode) {
+    errorDiv.textContent = '인증 코드를 입력해주세요.'
+    errorDiv.classList.remove('hidden')
+    return
+  }
+  
+  if (!window.signupFormData) {
+    errorDiv.textContent = '세션이 만료되었습니다. 다시 시도해주세요.'
+    errorDiv.classList.remove('hidden')
+    signupStep = 1
+    updateAuthFormUI()
+    return
+  }
+  
+  try {
+    const { email, password, username } = window.signupFormData
+    const response = await axios.post(`${API_BASE}/auth/signup`, {
+      email,
+      password,
+      password_confirm: password,
+      username,
+      verification_code: verificationCode
+    })
+    
     const { data } = response.data
     saveAuthState(data, data.token)
     renderApp()
   } catch (error) {
     errorDiv.textContent = error.response?.data?.error || '회원가입 실패'
     errorDiv.classList.remove('hidden')
+  }
+}
+
+function handleLoginOrSignup() {
+  if (isSignupMode) {
+    if (signupStep === 1) {
+      handleSignupStep1()
+    } else {
+      handleSignupStep2()
+    }
+  } else {
+    handleLogin()
   }
 }
 

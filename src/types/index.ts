@@ -13,6 +13,9 @@ export interface User {
   updated_at: string
   last_login_at: string | null
   is_active: number
+  email_verified: number  // 🆕 이메일 인증 여부
+  email_verification_code: string | null  // 🆕 인증 코드
+  email_verification_expires_at: string | null  // 🆕 인증 코드 만료시간
 }
 
 // Task enums
@@ -100,7 +103,13 @@ export interface LetGoItem {
 export interface SignupRequest {
   email: string
   password: string
+  password_confirm: string  // 🆕 비밀번호 확인
   username: string
+}
+
+export interface VerifyEmailRequest {
+  email: string
+  code: string
 }
 
 export interface LoginRequest {

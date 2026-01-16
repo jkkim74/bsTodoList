@@ -865,3 +865,69 @@ body {
         }
     }
 }
+/* 🆕 Authentication Form Styles */
+#email-error,
+#password-error,
+#password-confirm-error,
+#username-error,
+#verification-code-error {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+#password-match {
+    color: #059669;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+#password-strength {
+    margin-top: 0.5rem;
+}
+
+#strength-bar {
+    height: 0.5rem;
+    border-radius: 9999px;
+    transition: all 0.3s ease;
+}
+
+#strength-text {
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
+#password-requirements {
+    background-color: #f9fafb;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+}
+
+#password-requirements .flex {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+#password-requirements .flex:last-child {
+    margin-bottom: 0;
+}
+
+/* Success message styles */
+#success-message {
+    background-color: #ecfdf5;
+    border-color: #10b981;
+    color: #065f46;
+}
+
+#success-message.hidden {
+    display: none;
+}
+
+#error-message.hidden {
+    display: none;
+}

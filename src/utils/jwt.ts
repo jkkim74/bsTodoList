@@ -80,3 +80,47 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   const passwordHash = await hashPassword(password)
   return passwordHash === hash
 }
+
+// 🆕 Password validation helper
+export function validatePassword(password: string): { valid: boolean; errors: string[] } {
+  const errors: string[] = []
+
+  if (password.length < 8) {
+    errors.push('비밀번호는 최소 8자 이상이어야 합니다.')
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('비밀번호는 최소 1개의 대문자를 포함해야 합니다.')
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('비밀번호는 최소 1개의 소문자를 포함해야 합니다.')
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push('비밀번호는 최소 1개의 숫자를 포함해야 합니다.')
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push('비밀번호는 최소 1개의 특수문자를 포함해야 합니다.')
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  }
+}
+
+// 🆕 Email format validation
+export function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+// 🆕 Generate verification code
+export function generateVerificationCode(): string {
+  return Math.random().toString(36).substring(2, 8).toUpperCase()
+}
+
+// 🆕 Get verification code expiry time (15 minutes from now)
+export function getVerificationCodeExpiry(): Date {
+  const now = new Date()
+  now.setMinutes(now.getMinutes() + 15)
+  return now
+}
