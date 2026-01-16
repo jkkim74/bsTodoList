@@ -116,14 +116,14 @@ function renderLoginPage() {
             <label class="block text-gray-700 text-sm font-medium mb-2">
               <i class="fas fa-envelope mr-1"></i> 이메일
             </label>
-            <input type="email" id="email" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="test@example.com">
+            <input type="email" id="email" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="아이디 입력">
           </div>
           
           <div class="mb-4">
             <label class="block text-gray-700 text-sm font-medium mb-2">
               <i class="fas fa-lock mr-1"></i> 비밀번호
             </label>
-            <input type="password" id="password" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="password123">
+            <input type="password" id="password" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors" placeholder="비밀번호 입력">
           </div>
           
           <div class="mb-6" id="username-field" style="display:none;">
@@ -142,12 +142,6 @@ function renderLoginPage() {
           <button onclick="toggleSignup()" id="toggle-btn" class="w-full btn btn-secondary py-3">
             <i class="fas fa-user-plus mr-2"></i> 회원가입
           </button>
-        </div>
-        
-        <div class="footer-note mt-6">
-          <p class="font-medium mb-2"><i class="fas fa-info-circle mr-1"></i> 테스트 계정:</p>
-          <p><strong>이메일:</strong> test@example.com</p>
-          <p><strong>비밀번호:</strong> password123</p>
         </div>
       </div>
     </div>
