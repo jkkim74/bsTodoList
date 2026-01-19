@@ -26,6 +26,16 @@ const config: CapacitorConfig = {
       style: 'Dark',
       backgroundColor: '#4F46E5'
     }
+  },
+  // 🔥 OAuth Deep Link Configuration
+  android: {
+    allowMixedContent: true,
+    captureInput: true,
+    webContentsDebuggingEnabled: true
+  },
+  ios: {
+    contentInset: 'automatic',
+    allowsLinkPreview: true
   }
 };
 

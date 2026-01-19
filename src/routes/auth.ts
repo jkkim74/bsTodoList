@@ -63,8 +63,14 @@ auth.get('/google/callback', async (c) => {
         <head>
           <title>Google Login Error</title>
           <script>
-            // Redirect to main page with error
-            window.location.href = '/?error=' + encodeURIComponent('${error}')
+            // 🔥 Hybrid App: Use custom URL scheme
+            const isHybridApp = window.Capacitor && window.Capacitor.isNativePlatform()
+            if (isHybridApp) {
+              window.location.href = 'com.braindump.app://oauth/callback?error=' + encodeURIComponent('${error}')
+            } else {
+              // Web: Standard redirect
+              window.location.href = '/?error=' + encodeURIComponent('${error}')
+            }
           </script>
         </head>
         <body>
@@ -77,6 +83,54 @@ auth.get('/google/callback', async (c) => {
     if (!code) {
       return c.html(`
         <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Google Login Error</title>
+          <script>
+            // 🔥 Hybrid App: Use custom URL scheme
+            const isHybridApp = window.Capacitor && window.Capacitor.isNativePlatform()
+            if (isHybridApp) {
+              window.location.href = 'com.braindump.app://oauth/callback?error=' + encodeURIComponent('Authorization code missing')
+            } else {
+              // Web: Standard redirect
+              window.location.href = '/?error=' + encodeURIComponent('인증 코드가 없습니다.')
+            }
+          </script>
+        </head>
+        <body>
+          <p>인증 코드가 없습니다. 잠시 후 리디렉션됩니다...</p>
+        </body>
+        </html>
+      `)
+    }
+
+    // Success: Redirect back to app with code and state
+    return c.html(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Google Login Success</title>
+        <script>
+          // 🔥 Hybrid App: Use custom URL scheme for deep linking
+          const isHybridApp = window.Capacitor && window.Capacitor.isNativePlatform()
+          if (isHybridApp) {
+            const deepLink = 'com.braindump.app://oauth/callback?code=${code}' + 
+              (('${state}') ? '&state=${state}' : '')
+            console.log('[Hybrid App] Deep linking to:', deepLink)
+            window.location.href = deepLink
+          } else {
+            // Web: Standard redirect with query params
+            const webUrl = '/?code=${code}' + (('${state}') ? '&state=${state}' : '')
+            console.log('[Web] Redirecting to:', webUrl)
+            window.location.href = webUrl
+          }
+        </script>
+      </head>
+      <body>
+        <p>Google 로그인 성공! 잠시 후 앱으로 돌아갑니다...</p>
+      </body>
+      </html>
+    `)>
         <html>
         <head>
           <title>Google Login Error</title>

@@ -3,6 +3,14 @@ const API_BASE = '/api'
 // 🆕 Cloudflare에서 주입한 환경 변수
 const GOOGLE_CLIENT_ID = window.GOOGLE_CLIENT_ID || ''
 
+// 🆕 Capacitor imports for hybrid app
+let Capacitor, Browser, App
+if (typeof window.Capacitor !== 'undefined') {
+  Capacitor = window.Capacitor
+  Browser = window.Capacitor.Plugins?.Browser
+  App = window.Capacitor.Plugins?.App
+}
+
 let currentUser = null
 let currentDate = new Date().toISOString().split('T')[0]
 let dailyOverviewData = null
@@ -587,8 +595,23 @@ async function handleGoogleLogin() {
     // Store state for verification
     sessionStorage.setItem('google_oauth_state', state)
 
-    // Redirect to Google OAuth
-    window.location.href = authUrl
+    // 🔥 Hybrid App: Use in-app browser
+    if (Capacitor && Browser && Capacitor.isNativePlatform()) {
+      console.log('[Hybrid App] Opening OAuth in in-app browser')
+      
+      // Open in-app browser
+      await Browser.open({
+        url: authUrl,
+        windowName: '_self',
+        presentationStyle: 'popover'
+      })
+      
+      // The callback will be handled by App URL Listener (see DOMContentLoaded)
+    } else {
+      // 🌐 Web: Use standard redirect
+      console.log('[Web] Redirecting to OAuth URL')
+      window.location.href = authUrl
+    }
   } catch (error) {
     errorDiv.textContent = '구글 로그인 준비 중 오류가 발생했습니다.'
     errorDiv.classList.remove('hidden')
@@ -655,6 +678,31 @@ async function handleGoogleSignIn(credentialResponse) {
 
 // Check if page loaded with OAuth callback
 document.addEventListener('DOMContentLoaded', () => {
+  // 🔥 Hybrid App: Register App URL Listener for OAuth callback
+  if (Capacitor && App && Capacitor.isNativePlatform()) {
+    console.log('[Hybrid App] Registering App URL Listener for OAuth')
+    
+    App.addListener('appUrlOpen', async (data) => {
+      console.log('[Hybrid App] App URL opened:', data.url)
+      
+      // Close in-app browser
+      if (Browser) {
+        await Browser.close()
+      }
+      
+      // Parse OAuth callback URL
+      const url = new URL(data.url)
+      const code = url.searchParams.get('code')
+      const state = url.searchParams.get('state')
+      
+      if (code) {
+        console.log('[Hybrid App] Handling OAuth callback with code:', code)
+        handleGoogleCallback(code, state)
+      }
+    })
+  }
+  
+  // 🌐 Web: Handle OAuth callback from URL params
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
   const state = params.get('state')
