@@ -17,6 +17,7 @@ import {
   GoogleOAuthError
 } from '../utils/google-oauth'
 import { successResponse, errorResponse, getCurrentDateTime } from '../utils/response'
+import { sendVerificationEmail } from '../utils/email'
 
 const auth = new Hono<{ Bindings: Env }>()
 
@@ -369,17 +370,47 @@ auth.post('/signup/request-verification', async (c) => {
       return errorResponse(c, '이미 가입된 이메일입니다.', 400)
     }
 
+    // ✅ Rate limiting check: prevent too many requests
+    const recentVerification = await c.env.DB.prepare(
+      'SELECT created_at FROM email_verifications WHERE email = ? AND created_at > datetime("now", "-1 minute")'
+    ).bind(email).first()
+
+    if (recentVerification) {
+      return errorResponse(c, '인증 코드는 1분에 한 번만 요청할 수 있습니다.', 429)
+    }
+
     // Generate verification code
     const verificationCode = generateVerificationCode()
     const expiresAt = getVerificationCodeExpiry()
 
-    // In production, send email here
-    console.log(`[TEST] Verification code for ${email}: ${verificationCode}`)
+    // ✅ Store verification code in database
+    await c.env.DB.prepare(`
+      INSERT INTO email_verifications (email, code, expires_at, verified, attempt_count)
+      VALUES (?, ?, ?, 0, 0)
+      ON CONFLICT(email) DO UPDATE SET
+        code = excluded.code,
+        expires_at = excluded.expires_at,
+        verified = 0,
+        attempt_count = 0,
+        created_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+    `).bind(email, verificationCode, expiresAt).run()
 
+    // ✅ Send verification email
+    const emailSent = await sendVerificationEmail(email, verificationCode, c.env)
+
+    if (!emailSent && c.env.EMAIL_SERVICE_ENABLED) {
+      return errorResponse(c, '이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.', 500)
+    }
+
+    // ✅ Return success without exposing the code (security)
     return successResponse(c, {
       email,
-      message: '인증 코드가 발송되었습니다. (테스트용: 콘솔 확인)',
-      verificationCode
+      message: emailSent 
+        ? '인증 코드가 이메일로 발송되었습니다.' 
+        : '인증 코드가 발송되었습니다. (개발 모드: 콘솔 확인)',
+      // Only include code in development mode
+      ...((!c.env.EMAIL_SERVICE_ENABLED) && { verificationCode })
     }, '인증 코드가 발송되었습니다.')
   } catch (error) {
     console.error('Request verification error:', error)
@@ -398,6 +429,10 @@ auth.post('/signup', async (c) => {
       return errorResponse(c, '이메일, 비밀번호, 비밀번호 확인, 이름은 필수입니다.', 400)
     }
 
+    if (!verification_code) {
+      return errorResponse(c, '인증 코드는 필수입니다.', 400)
+    }
+
     // Email format validation
     if (!validateEmail(email)) {
       return errorResponse(c, '올바른 이메일 형식이 아닙니다.', 400)
@@ -414,6 +449,49 @@ auth.post('/signup', async (c) => {
       return errorResponse(c, passwordValidation.errors.join(' '), 400)
     }
 
+    // ✅ Verify the verification code
+    const verification = await c.env.DB.prepare(
+      'SELECT * FROM email_verifications WHERE email = ? AND verified = 0 ORDER BY created_at DESC LIMIT 1'
+    ).bind(email).first()
+
+    if (!verification) {
+      return errorResponse(c, '인증 코드를 먼저 요청해주세요.', 400)
+    }
+
+    // ✅ Check if code matches
+    if (verification.code !== verification_code) {
+      // Increment attempt count
+      const attemptCount = (verification.attempt_count as number) + 1
+      
+      await c.env.DB.prepare(
+        'UPDATE email_verifications SET attempt_count = ?, updated_at = CURRENT_TIMESTAMP WHERE verification_id = ?'
+      ).bind(attemptCount, verification.verification_id).run()
+
+      // ✅ Block after 5 failed attempts
+      if (attemptCount >= 5) {
+        await c.env.DB.prepare(
+          'UPDATE email_verifications SET verified = -1 WHERE verification_id = ?'
+        ).bind(verification.verification_id).run()
+        
+        return errorResponse(c, '인증 시도 횟수를 초과했습니다. 인증 코드를 다시 요청해주세요.', 429)
+      }
+
+      return errorResponse(c, `인증 코드가 올바르지 않습니다. (${5 - attemptCount}회 남음)`, 400)
+    }
+
+    // ✅ Check if code has expired
+    const now = new Date()
+    const expiresAt = new Date(verification.expires_at as string)
+    
+    if (now > expiresAt) {
+      return errorResponse(c, '인증 코드가 만료되었습니다. 인증 코드를 다시 요청해주세요.', 400)
+    }
+
+    // ✅ Check if already verified (prevent reuse)
+    if (verification.verified === 1) {
+      return errorResponse(c, '이미 사용된 인증 코드입니다.', 400)
+    }
+
     // Check if email already exists
     const existingUser = await c.env.DB.prepare(
       'SELECT user_id FROM users WHERE email = ?'
@@ -423,15 +501,25 @@ auth.post('/signup', async (c) => {
       return errorResponse(c, '이미 가입된 이메일입니다.', 400)
     }
 
+    // ✅ Mark verification as used
+    await c.env.DB.prepare(
+      'UPDATE email_verifications SET verified = 1, updated_at = CURRENT_TIMESTAMP WHERE verification_id = ?'
+    ).bind(verification.verification_id).run()
+
     // Hash password
     const hashedPassword = await hashPassword(password)
 
-    // Insert new user
+    // ✅ Insert new user (email_verified = 1 since we verified the code)
     const result = await c.env.DB.prepare(
       'INSERT INTO users (email, password, username, is_active, email_verified) VALUES (?, ?, ?, 1, 1)'
     ).bind(email, hashedPassword, username).run()
 
     const userId = result.meta.last_row_id as number
+
+    // ✅ Clean up old verifications for this email
+    await c.env.DB.prepare(
+      'DELETE FROM email_verifications WHERE email = ? AND verification_id != ?'
+    ).bind(email, verification.verification_id).run()
 
     // Generate JWT
     const token = await signJWT({ userId, email })
