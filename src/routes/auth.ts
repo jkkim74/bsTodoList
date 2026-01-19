@@ -103,7 +103,7 @@ auth.post('/google/callback', async (c) => {
       if (existingUser) {
         // Link OAuth to existing account
         await c.env.DB.prepare(
-          'UPDATE users SET oauth_provider = ?, oauth_id = ?, oauth_email = ?, profile_picture = ?, provider_connected_at = ? WHERE user_id = ?'
+          'UPDATE users SET oauth_provider = ?, oauth_id = ?, oauth_email = ?, profile_picture = ?, provider_connected_at = ?, email_verified = 1 WHERE user_id = ?'
         ).bind('google', userInfo.sub, userInfo.email, userInfo.picture, getCurrentDateTime(), existingUser.user_id).run()
         user = existingUser
       } else {
@@ -212,7 +212,7 @@ auth.post('/google/token', async (c) => {
       if (existingUser) {
         // Link OAuth to existing account
         await c.env.DB.prepare(
-          'UPDATE users SET oauth_provider = ?, oauth_id = ?, oauth_email = ?, profile_picture = ?, provider_connected_at = ? WHERE user_id = ?'
+          'UPDATE users SET oauth_provider = ?, oauth_id = ?, oauth_email = ?, profile_picture = ?, provider_connected_at = ?, email_verified = 1 WHERE user_id = ?'
         ).bind('google', userInfo.sub, userInfo.email, userInfo.picture, getCurrentDateTime(), existingUser.user_id).run()
         user = existingUser
       } else {
