@@ -1,6 +1,8 @@
 // Database bindings
 export interface Env {
   DB: D1Database
+  VITE_GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
 }
 
 // User types
@@ -13,9 +15,14 @@ export interface User {
   updated_at: string
   last_login_at: string | null
   is_active: number
-  email_verified: number  // 🆕 이메일 인증 여부
-  email_verification_code: string | null  // 🆕 인증 코드
-  email_verification_expires_at: string | null  // 🆕 인증 코드 만료시간
+  email_verified: number  // 이메일 인증 여부
+  email_verification_code: string | null  // 인증 코드
+  email_verification_expires_at: string | null  // 인증 코드 만료시간
+  oauth_provider: string | null  // 🆕 'google', 'github' 등
+  oauth_id: string | null  // 🆕 OAuth 제공자의 고유 ID
+  oauth_email: string | null  // 🆕 OAuth 제공자 이메일
+  profile_picture: string | null  // 🆕 프로필 사진 URL
+  provider_connected_at: string | null  // 🆕 OAuth 연동 시간
 }
 
 // Task enums
@@ -115,6 +122,32 @@ export interface VerifyEmailRequest {
 export interface LoginRequest {
   email: string
   password: string
+}
+
+// 🆕 Google OAuth
+export interface GoogleOAuthCallbackRequest {
+  code: string
+  state?: string
+}
+
+export interface GoogleTokenResponse {
+  access_token: string
+  expires_in: number
+  refresh_token?: string
+  scope: string
+  token_type: string
+  id_token: string
+}
+
+export interface GoogleUserInfo {
+  sub: string // unique user ID
+  email: string
+  email_verified: boolean
+  name: string
+  picture: string
+  given_name?: string
+  family_name?: string
+  locale?: string
 }
 
 export interface TaskCreateRequest {

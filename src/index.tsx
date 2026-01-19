@@ -96,6 +96,9 @@ app.get('/api/health', (c) => {
 
 // Default route - Serve frontend
 app.get('/', (c) => {
+  // 🆕 Cloudflare에서 환경 변수 읽기
+  const googleClientId = c.env.VITE_GOOGLE_CLIENT_ID
+  
   return c.html(`
     <!DOCTYPE html>
     <html lang="ko">
@@ -133,6 +136,11 @@ app.get('/', (c) => {
               }
             }
           }
+        </script>
+        
+        <!-- 🆕 Google OAuth 설정 -->
+        <script>
+          window.GOOGLE_CLIENT_ID = '${googleClientId}'
         </script>
         
         <!-- Service Worker Registration -->

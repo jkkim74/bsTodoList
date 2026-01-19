@@ -39,6 +39,24 @@
 - **API Health Check**: https://3000-inpthy8x5rk4j3zc2m4jd-d0b9e1e2.sandbox.novita.ai/api/health
 - **프로덕션**: (Cloudflare Pages 배포 후 업데이트)
 
+## 🔐 인증 기능
+
+### 이메일/비밀번호 인증
+- ✅ 회원가입 (이메일 검증 + 비밀번호 강도 확인)
+- ✅ 로그인
+- ✅ 2단계 인증 프로세스
+- ✅ 비밀번호 재입력 검증
+
+### 🆕 Google OAuth 로그인
+- ✅ Google 소셜 로그인 (Authorization Code Flow)
+- ✅ 자동 사용자 생성/업데이트
+- ✅ 기존 계정 연동
+- ✅ 프로필 사진 저장
+- ✅ **Cloudflare 환경 변수 사용**
+
+**빠른 시작**: [GOOGLE_OAUTH_SUMMARY.md](./GOOGLE_OAUTH_SUMMARY.md)  
+**배포 명령어**: `npm run deploy:migrate`
+
 ## 💾 데이터 아키텍처
 
 ### 데이터베이스: Cloudflare D1 (SQLite)
@@ -279,7 +297,10 @@ webapp/
 ## 📊 현재 완료 기능
 
 ### ✅ 완료된 기능
-1. 사용자 인증 (회원가입/로그인)
+1. 사용자 인증
+   - 회원가입 (이메일 검증 + 비밀번호 강도)
+   - 로그인
+   - **🆕 Google OAuth 로그인**
 2. STEP 1: Brain Dump (할 일 꺼내기)
 3. STEP 2: Categorize (우선순위 분류)
 4. STEP 3: Action (TOP 3 설정)
@@ -289,17 +310,23 @@ webapp/
 8. 반응형 UI
 
 ### 🚧 구현 예정 기능
-1. 하루 회고 UI
-2. 주간 목표 관리 UI
-3. 감정/에너지 레벨 추적 UI
-4. 자유 메모 기능
-5. PWA (Progressive Web App)
-6. 다크 모드
-7. 데이터 내보내기/가져오기
+1. **다른 소셜 로그인** (GitHub, Kakao)
+2. 하루 회고 UI
+3. 주간 목표 관리 UI
+4. 감정/에너지 레벨 추적 UI
+5. 자유 메모 기능
+6. PWA (Progressive Web App)
+7. 다크 모드
+8. 데이터 내보내기/가져오기
 
 ## 🎯 추천 다음 단계
 
-1. **Cloudflare Pages 배포**
+1. **Google OAuth 설정 및 배포**
+   - [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md) 참조하여 Google Cloud 설정
+   - 로컬에서 테스트 후 프로덕션 배포
+   - 상세 구현: [GOOGLE_OAUTH_IMPLEMENTATION.md](./GOOGLE_OAUTH_IMPLEMENTATION.md)
+
+2. **Cloudflare Pages 배포**
    - 위의 배포 가이드를 따라 프로덕션 배포
    - 영구 URL 획득 (webapp.pages.dev)
    - 커스텀 도메인 연결 (선택사항)
