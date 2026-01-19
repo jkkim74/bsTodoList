@@ -47,7 +47,88 @@ auth.get('/google/authorize', async (c) => {
   }
 })
 
-// 🆕 Google OAuth: Handle callback
+// 🆕 Google OAuth: Handle callback (GET - from Google redirect)
+auth.get('/google/callback', async (c) => {
+  try {
+    const code = c.req.query('code')
+    const state = c.req.query('state')
+    const error = c.req.query('error')
+
+    // Check for OAuth errors
+    if (error) {
+      return c.html(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Google Login Error</title>
+          <script>
+            // Redirect to main page with error
+            window.location.href = '/?error=' + encodeURIComponent('${error}')
+          </script>
+        </head>
+        <body>
+          <p>Google 로그인 오류가 발생했습니다. 잠시 후 리디렉션됩니다...</p>
+        </body>
+        </html>
+      `)
+    }
+
+    if (!code) {
+      return c.html(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Google Login Error</title>
+          <script>
+            window.location.href = '/?error=' + encodeURIComponent('인증 코드가 없습니다.')
+          </script>
+        </head>
+        <body>
+          <p>리디렉션 중...</p>
+        </body>
+        </html>
+      `)
+    }
+
+    // Return HTML that will trigger the callback handler in app.js
+    return c.html(`
+      <!DOCTYPE html>
+      <html lang="ko">
+      <head>
+        <meta charset="UTF-8">
+        <title>Google 로그인 처리 중...</title>
+        <script>
+          // Pass the code and state back to the main page
+          window.location.href = '/?code=${encodeURIComponent(code)}${state ? '&state=' + encodeURIComponent(state) : ''}'
+        </script>
+      </head>
+      <body>
+        <p style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+          Google 로그인 처리 중... 잠시만 기다려주세요.
+        </p>
+      </body>
+      </html>
+    `)
+  } catch (error) {
+    console.error('Google callback GET error:', error)
+    return c.html(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Google Login Error</title>
+        <script>
+          window.location.href = '/?error=' + encodeURIComponent('Google 로그인 중 오류가 발생했습니다.')
+        </script>
+      </head>
+      <body>
+        <p>오류가 발생했습니다. 리디렉션 중...</p>
+      </body>
+      </html>
+    `)
+  }
+})
+
+// 🆕 Google OAuth: Handle callback (POST - from frontend)
 auth.post('/google/callback', async (c) => {
   try {
     const body = await c.req.json<GoogleOAuthCallbackRequest & { state?: string }>()
