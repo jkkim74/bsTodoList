@@ -4,13 +4,14 @@ const config: CapacitorConfig = {
   appId: 'com.braindump.app',
   appName: 'Brain Dumping',
   webDir: 'dist',
-  server: {
-    // Production: use app assets
-    // androidScheme: 'https',
-    // Development: comment out for local testing
-     url: 'https://webapp-tvo.pages.dev',
-     cleartext: true
-  },
+  
+  // 🔥 프로덕션: server 설정 주석 처리 (로컬 빌드 사용)
+  // 개발 중 Live Reload가 필요한 경우에만 활성화
+  // server: {
+  //   url: 'https://webapp-tvo.pages.dev',
+  //   cleartext: true
+  // },
+  
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
