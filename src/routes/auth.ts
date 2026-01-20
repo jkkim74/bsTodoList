@@ -130,39 +130,6 @@ auth.get('/google/callback', async (c) => {
         <p>Google 로그인 성공! 잠시 후 앱으로 돌아갑니다...</p>
       </body>
       </html>
-    `)>
-        <html>
-        <head>
-          <title>Google Login Error</title>
-          <script>
-            window.location.href = '/?error=' + encodeURIComponent('인증 코드가 없습니다.')
-          </script>
-        </head>
-        <body>
-          <p>리디렉션 중...</p>
-        </body>
-        </html>
-      `)
-    }
-
-    // Return HTML that will trigger the callback handler in app.js
-    return c.html(`
-      <!DOCTYPE html>
-      <html lang="ko">
-      <head>
-        <meta charset="UTF-8">
-        <title>Google 로그인 처리 중...</title>
-        <script>
-          // Pass the code and state back to the main page
-          window.location.href = '/?code=${encodeURIComponent(code)}${state ? '&state=' + encodeURIComponent(state) : ''}'
-        </script>
-      </head>
-      <body>
-        <p style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-          Google 로그인 처리 중... 잠시만 기다려주세요.
-        </p>
-      </body>
-      </html>
     `)
   } catch (error) {
     console.error('Google callback GET error:', error)
