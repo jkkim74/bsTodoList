@@ -608,6 +608,12 @@ async function handleGoogleLogin() {
   try {
     // Step 1: Get authorization URL
     const authResponse = await axios.get(`${API_BASE}/auth/google/authorize`)
+    
+    // 🔥 응답 검증
+    if (!authResponse.data.success) {
+      throw new Error(authResponse.data.error || 'Google 로그인 준비 실패')
+    }
+    
     const { authUrl, state } = authResponse.data.data
 
     // Store state for verification
