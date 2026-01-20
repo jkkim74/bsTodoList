@@ -625,6 +625,16 @@ async function handleGoogleCallback(code, state) {
   errorDiv.classList.add('hidden')
 
   try {
+    // 🔥 하이브리드 앱: In-App Browser 닫기
+    if (Capacitor && Browser && Capacitor.isNativePlatform()) {
+      console.log('[Hybrid App] Closing in-app browser before callback processing')
+      try {
+        await Browser.close()
+      } catch (e) {
+        console.log('[Hybrid App] Browser already closed or error:', e)
+      }
+    }
+
     // Verify state
     const storedState = sessionStorage.getItem('google_oauth_state')
     if (state && storedState && state !== storedState) {
@@ -685,11 +695,6 @@ document.addEventListener('DOMContentLoaded', () => {
     App.addListener('appUrlOpen', async (data) => {
       console.log('[Hybrid App] App URL opened:', data.url)
       
-      // Close in-app browser
-      if (Browser) {
-        await Browser.close()
-      }
-      
       // Parse OAuth callback URL
       const url = new URL(data.url)
       const code = url.searchParams.get('code')
@@ -697,6 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (code) {
         console.log('[Hybrid App] Handling OAuth callback with code:', code)
+        // Browser.close()는 handleGoogleCallback 내부에서 호출됨
         handleGoogleCallback(code, state)
       }
     })
