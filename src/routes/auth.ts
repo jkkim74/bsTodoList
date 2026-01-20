@@ -62,19 +62,21 @@ auth.get('/google/callback', async (c) => {
         <html>
         <head>
           <title>Google Login Error</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <script>
-            // 🔥 Hybrid App: Use custom URL scheme
-            const isHybridApp = window.Capacitor && window.Capacitor.isNativePlatform()
-            if (isHybridApp) {
-              window.location.href = 'com.braindump.app://oauth/callback?error=' + encodeURIComponent('${error}')
-            } else {
-              // Web: Standard redirect
+            // Try deep link first
+            const deepLink = 'com.braindump.app://oauth/callback?error=' + encodeURIComponent('${error}')
+            window.location.href = deepLink
+            
+            // Fallback to web
+            setTimeout(() => {
               window.location.href = '/?error=' + encodeURIComponent('${error}')
-            }
+            }, 500)
           </script>
         </head>
-        <body>
-          <p>Google 로그인 오류가 발생했습니다. 잠시 후 리디렉션됩니다...</p>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+          <h2>Google 로그인 오류</h2>
+          <p>앱으로 돌아가는 중...</p>
         </body>
         </html>
       `)
@@ -86,19 +88,21 @@ auth.get('/google/callback', async (c) => {
         <html>
         <head>
           <title>Google Login Error</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <script>
-            // 🔥 Hybrid App: Use custom URL scheme
-            const isHybridApp = window.Capacitor && window.Capacitor.isNativePlatform()
-            if (isHybridApp) {
-              window.location.href = 'com.braindump.app://oauth/callback?error=' + encodeURIComponent('Authorization code missing')
-            } else {
-              // Web: Standard redirect
+            // Try deep link first
+            const deepLink = 'com.braindump.app://oauth/callback?error=' + encodeURIComponent('Authorization code missing')
+            window.location.href = deepLink
+            
+            // Fallback to web
+            setTimeout(() => {
               window.location.href = '/?error=' + encodeURIComponent('인증 코드가 없습니다.')
-            }
+            }, 500)
           </script>
         </head>
-        <body>
-          <p>인증 코드가 없습니다. 잠시 후 리디렉션됩니다...</p>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+          <h2>인증 코드 오류</h2>
+          <p>앱으로 돌아가는 중...</p>
         </body>
         </html>
       `)
@@ -110,24 +114,31 @@ auth.get('/google/callback', async (c) => {
       <html>
       <head>
         <title>Google Login Success</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script>
-          // 🔥 Hybrid App: Use custom URL scheme for deep linking
-          const isHybridApp = window.Capacitor && window.Capacitor.isNativePlatform()
-          if (isHybridApp) {
-            const deepLink = 'com.braindump.app://oauth/callback?code=${code}' + 
-              (('${state}') ? '&state=${state}' : '')
-            console.log('[Hybrid App] Deep linking to:', deepLink)
-            window.location.href = deepLink
-          } else {
-            // Web: Standard redirect with query params
+          // 🔥 Try Deep Link first (for hybrid app)
+          // Deep Link will automatically trigger App URL Listener if app is available
+          const deepLink = 'com.braindump.app://oauth/callback?code=${code}' + 
+            (('${state}') ? '&state=${state}' : '')
+          
+          console.log('[OAuth Callback] Attempting deep link:', deepLink)
+          
+          // Try to open deep link (will work if app is installed)
+          window.location.href = deepLink
+          
+          // Fallback to web redirect after a short delay
+          // If deep link works, this won't execute (page will have navigated away)
+          setTimeout(() => {
+            console.log('[OAuth Callback] Deep link timeout, falling back to web redirect')
             const webUrl = '/?code=${code}' + (('${state}') ? '&state=${state}' : '')
-            console.log('[Web] Redirecting to:', webUrl)
             window.location.href = webUrl
-          }
+          }, 500)
         </script>
       </head>
-      <body>
-        <p>Google 로그인 성공! 잠시 후 앱으로 돌아갑니다...</p>
+      <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+        <h2>Google 로그인 성공!</h2>
+        <p>앱으로 돌아가는 중...</p>
+        <p style="color: #666; font-size: 14px;">자동으로 돌아가지 않는다면 <a href="/?code=${code}${state ? '&state=' + state : ''}">여기를 클릭</a>하세요.</p>
       </body>
       </html>
     `)
