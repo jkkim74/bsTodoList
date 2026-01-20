@@ -5,12 +5,12 @@ const config: CapacitorConfig = {
   appName: 'Brain Dumping',
   webDir: 'dist',
   
-  // 🔥 프로덕션: server 설정 주석 처리 (로컬 빌드 사용)
-  // 개발 중 Live Reload가 필요한 경우에만 활성화
-  // server: {
-  //   url: 'https://webapp-tvo.pages.dev',
-  //   cleartext: true
-  // },
+ // 🔥 프로덕션: server 설정 주석 처리 (로컬 빌드 사용)
+ // 개발 중 Live Reload가 필요한 경우에만 활성화
+  server: {
+    url: 'https://webapp-tvo.pages.dev',
+    cleartext: true
+  },
   
   plugins: {
     SplashScreen: {
