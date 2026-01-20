@@ -5,10 +5,28 @@ const GOOGLE_CLIENT_ID = window.GOOGLE_CLIENT_ID || ''
 
 // 🆕 Capacitor imports for hybrid app
 let Capacitor, Browser, App
-if (typeof window.Capacitor !== 'undefined') {
-  Capacitor = window.Capacitor
-  Browser = window.Capacitor.Plugins?.Browser
-  App = window.Capacitor.Plugins?.App
+
+// 🔥 Capacitor 초기화 함수
+function initializeCapacitor() {
+  if (typeof window.Capacitor !== 'undefined') {
+    Capacitor = window.Capacitor
+    Browser = window.Capacitor.Plugins?.Browser
+    App = window.Capacitor.Plugins?.App
+    console.log('[Capacitor] Initialized successfully')
+    console.log('[Capacitor] Platform:', Capacitor.getPlatform())
+    console.log('[Capacitor] Is Native:', Capacitor.isNativePlatform())
+    console.log('[Capacitor] Browser Plugin:', Browser ? 'Available' : 'Not Available')
+    return true
+  }
+  console.log('[Capacitor] Not available - running in web mode')
+  return false
+}
+
+// 🔥 페이지 로드 시 Capacitor 초기화
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeCapacitor)
+} else {
+  initializeCapacitor()
 }
 
 let currentUser = null
@@ -595,27 +613,44 @@ async function handleGoogleLogin() {
     // Store state for verification
     sessionStorage.setItem('google_oauth_state', state)
 
+    // 🔥 Capacitor 재확인 (비동기 로드 대응)
+    if (!Capacitor && typeof window.Capacitor !== 'undefined') {
+      console.log('[Google Login] Re-initializing Capacitor')
+      initializeCapacitor()
+    }
+
     // 🔥 Hybrid App: Use in-app browser
     if (Capacitor && Browser && Capacitor.isNativePlatform()) {
       console.log('[Hybrid App] Opening OAuth in in-app browser')
+      console.log('[Hybrid App] Auth URL:', authUrl)
+      console.log('[Hybrid App] Platform:', Capacitor.getPlatform())
       
-      // Open in-app browser
-      await Browser.open({
-        url: authUrl,
-        windowName: '_self',
-        presentationStyle: 'popover'
-      })
+      try {
+        // Open in-app browser
+        await Browser.open({
+          url: authUrl,
+          windowName: '_self',
+          presentationStyle: 'popover'
+        })
+        
+        console.log('[Hybrid App] In-app browser opened successfully')
+      } catch (browserError) {
+        console.error('[Hybrid App] Browser.open() failed:', browserError)
+        throw browserError
+      }
       
       // The callback will be handled by App URL Listener (see DOMContentLoaded)
     } else {
       // 🌐 Web: Use standard redirect
       console.log('[Web] Redirecting to OAuth URL')
+      console.log('[Web] Capacitor available:', typeof window.Capacitor !== 'undefined')
+      console.log('[Web] Capacitor.isNativePlatform:', Capacitor?.isNativePlatform())
       window.location.href = authUrl
     }
   } catch (error) {
+    console.error('[Google Login] Error:', error)
     errorDiv.textContent = '구글 로그인 준비 중 오류가 발생했습니다.'
     errorDiv.classList.remove('hidden')
-    console.error('Google login error:', error)
   }
 }
 
