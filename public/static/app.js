@@ -643,7 +643,6 @@ async function handleGoogleLogin() {
 }
 
 
-// ✅ 개선된 콜백 처리
 async function handleGoogleCallback(code, state) {
   const errorDiv = document.getElementById('error-message')
   if (errorDiv) errorDiv.classList.add('hidden')
@@ -651,26 +650,27 @@ async function handleGoogleCallback(code, state) {
   console.log('[Google Callback] Processing code:', code)
 
   try {
-    // State 검증 강화
-    const storedState = sessionStorage.getItem('google_oauth_state')
-    if (!storedState || state !== storedState) {
-      throw new Error('OAuth state 불일치 - 보안상 로그인을 중단합니다')
-    }
+    const isApp = Capacitor && Capacitor.isNativePlatform()
 
-    // 토큰 교환
+    // ✅ platform 정보를 백엔드에 전달 (핵심!)
     const response = await axios.post(`${API_BASE}/auth/google/callback`, {
       code,
-      state
+      state,
+      platform: isApp ? 'app' : 'web'  // 필수 추가!
     })
 
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Authentication failed')
+    }
+
     const { data } = response.data
-    saveAuthState(data, data.token)
+    saveAuthState(data.user, data.token)
     sessionStorage.removeItem('google_oauth_state')
 
     console.log('[Google Callback] Login successful')
 
-    // 하이브리드 앱: 안정적인 화면 전환을 위해 새로고침
-    if (Capacitor && Capacitor.isNativePlatform()) {
+    if (isApp) {
+      // 앱에서는 안정적인 상태 전환을 위해 새로고침
       setTimeout(() => {
         window.location.reload()
       }, 500)

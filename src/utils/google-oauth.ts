@@ -155,3 +155,58 @@ export function stateCache() {
     }
   }
 }
+
+// ✅ 1. getGoogleAuthUrl 함수 수정
+export const getGoogleAuthUrl = (
+  state: string,
+  redirectUri: string = process.env.GOOGLE_REDIRECT_URI!
+) => {
+  const client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri  // ✅ 동적 URI 사용
+  );
+
+  return client.generateAuthUrl({
+    access_type: 'offline',
+    scope: ['openid', 'email', 'profile'],
+    state: state,
+    prompt: 'consent'  // 모바일에서 계정 선택이 잘 되도록
+  });
+};
+
+// ✅ 2. validateGoogleCallback 함수 수정
+export const validateGoogleCallback = async (
+  code: string,
+  redirectUri: string = process.env.GOOGLE_REDIRECT_URI!
+) => {
+  const client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri  // ✅ 인증 시와 동일한 URI 필수!
+  );
+
+  try {
+    console.log(`[Google OAuth] Exchanging token with redirect_uri: ${redirectUri}`);
+
+    const { tokens } = await client.getToken(code);
+    client.setCredentials(tokens);
+
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token!,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    console.log(`[Google OAuth] User verified: ${payload?.email}`);
+
+    return {
+      ...payload,
+      tokens
+    };
+  } catch (error) {
+    console.error('[Google OAuth] Token exchange failed:', error);
+    throw error;
+  }
+};
+
