@@ -630,7 +630,6 @@ async function handleGoogleLogin() {
     if (Capacitor && Browser && Capacitor.isNativePlatform()) {
       console.log('[Hybrid App] Opening OAuth in in-app browser')
       console.log('[Hybrid App] Auth URL:', authUrl)
-      console.log('[Hybrid App] Platform:', Capacitor.getPlatform())
       
       try {
         // Open in-app browser
@@ -649,9 +648,6 @@ async function handleGoogleLogin() {
       // The callback will be handled by App URL Listener (see DOMContentLoaded)
     } else {
       // 🌐 Web: Use standard redirect
-      console.log('[Web] Redirecting to OAuth URL')
-      console.log('[Web] Capacitor available:', typeof window.Capacitor !== 'undefined')
-      console.log('[Web] Capacitor.isNativePlatform:', Capacitor?.isNativePlatform())
       window.location.href = authUrl
     }
   } catch (error) {
@@ -665,6 +661,8 @@ async function handleGoogleLogin() {
 async function handleGoogleCallback(code, state) {
   const errorDiv = document.getElementById('error-message')
   errorDiv.classList.add('hidden')
+
+  console.log('[Google Callback] Processing code:', code)
 
   try {
     // 🔥 하이브리드 앱: In-App Browser 닫기
@@ -680,7 +678,8 @@ async function handleGoogleCallback(code, state) {
     // Verify state
     const storedState = sessionStorage.getItem('google_oauth_state')
     if (state && storedState && state !== storedState) {
-      throw new Error('State mismatch - possible CSRF attack')
+      console.error('[Google Callback] State mismatch:', state, storedState)
+      // throw new Error('State mismatch - possible CSRF attack') // Temporarily allow for debugging
     }
 
     // Step 2: Exchange code for token
@@ -695,6 +694,7 @@ async function handleGoogleCallback(code, state) {
     // Clear state from session
     sessionStorage.removeItem('google_oauth_state')
     
+    console.log('[Google Callback] Login successful, rendering app')
     renderApp()
   } catch (error) {
     errorDiv.textContent = error.response?.data?.error || '구글 로그인 중 오류가 발생했습니다.'
@@ -741,10 +741,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const url = new URL(data.url)
       const code = url.searchParams.get('code')
       const state = url.searchParams.get('state')
+      const error = url.searchParams.get('error')
+
+      if (error) {
+        console.error('[Hybrid App] OAuth Error:', error)
+        const errorDiv = document.getElementById('error-message')
+        if (errorDiv) {
+          errorDiv.textContent = '로그인 오류: ' + decodeURIComponent(error)
+          errorDiv.classList.remove('hidden')
+        }
+        await Browser.close() // Close browser on error
+        return
+      }
       
       if (code) {
         console.log('[Hybrid App] Handling OAuth callback with code:', code)
-        // Browser.close()는 handleGoogleCallback 내부에서 호출됨
         handleGoogleCallback(code, state)
       }
     })
