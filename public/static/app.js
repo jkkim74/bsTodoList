@@ -84,8 +84,46 @@ function showToast(message, type = 'success', duration = 3000) {
   return toast
 }
 
-// Initialize app
+// Initialize app (수정된 버전)
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('[App] DOMContentLoaded fired')
+
+  // 🔥 OAuth 처리 중이면 로딩 화면 유지
+  if (isProcessingOAuth) {
+    console.log('[App] OAuth processing in progress')
+    showOAuthLoadingScreen()
+    return
+  }
+
+  // 🔥 대기 중인 OAuth 데이터 처리 (하이브리드 앱)
+  if (pendingOAuthData) {
+    console.log('[App] Processing pending OAuth callback')
+    showOAuthLoadingScreen()
+    setTimeout(() => {
+      handleGoogleCallback(pendingOAuthData.code, pendingOAuthData.state)
+      pendingOAuthData = null
+    }, 300)
+    return
+  }
+
+  // 🌐 웹 환경: URL 파라미터 확인
+  if (!Capacitor || !Capacitor.isNativePlatform()) {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    const state = params.get('state')
+
+    if (code) {
+      console.log('[Web] OAuth callback detected')
+      showOAuthLoadingScreen()
+      window.history.replaceState({}, document.title, window.location.pathname)
+      setTimeout(() => {
+        handleGoogleCallback(code, state)
+      }, 300)
+      return
+    }
+  }
+
+  // 일반 앱 시작
   loadAuthState()
   renderApp()
 })
@@ -600,112 +638,144 @@ function handleLogout() {
   renderApp()
 }
 
-// 🆕 Google Login Handler
+// 🆕 Google Login Handler (수정된 버전)
 async function handleGoogleLogin() {
   const errorDiv = document.getElementById('error-message')
-  errorDiv.classList.add('hidden')
+  if (errorDiv) errorDiv.classList.add('hidden')
 
   try {
-    // Step 1: Get authorization URL
     const isApp = Capacitor && Browser && Capacitor.isNativePlatform()
     const authResponse = await axios.get(`${API_BASE}/auth/google/authorize${isApp ? '?platform=app' : ''}`)
-    
-    // 🔥 응답 검증
+
     if (!authResponse.data.success) {
       throw new Error(authResponse.data.error || 'Google 로그인 준비 실패')
     }
-    
+
     const { authUrl, state } = authResponse.data.data
 
-    // Store state for verification
-    sessionStorage.setItem('google_oauth_state', state)
+    // 🔥 핵심 수정: sessionStorage → localStorage
+    localStorage.setItem('google_oauth_state', state)
+    localStorage.setItem('google_oauth_timestamp', Date.now().toString())
 
-    // 🔥 Capacitor 재확인 (비동기 로드 대응)
-    if (!Capacitor && typeof window.Capacitor !== 'undefined') {
-      console.log('[Google Login] Re-initializing Capacitor')
-      initializeCapacitor()
-    }
+    if (isApp) {
+      console.log('[OAuth] Opening in-app browser for hybrid app')
+      isProcessingOAuth = true
 
-    // 🔥 Hybrid App: Use in-app browser
-    if (Capacitor && Browser && Capacitor.isNativePlatform()) {
-      console.log('[Hybrid App] Opening OAuth in in-app browser')
-      console.log('[Hybrid App] Auth URL:', authUrl)
-      
       try {
-        // Open in-app browser
         await Browser.open({
           url: authUrl,
           windowName: '_self',
           presentationStyle: 'popover'
         })
-        
-        console.log('[Hybrid App] In-app browser opened successfully')
+        console.log('[OAuth] In-app browser opened successfully')
       } catch (browserError) {
-        console.error('[Hybrid App] Browser.open() failed:', browserError)
+        console.error('[OAuth] Failed to open browser:', browserError)
+        isProcessingOAuth = false
         throw browserError
       }
-      
-      // The callback will be handled by App URL Listener (see DOMContentLoaded)
     } else {
-      // 🌐 Web: Use standard redirect
+      // 웹 환경
       window.location.href = authUrl
     }
   } catch (error) {
-    console.error('[Google Login] Error:', error)
-    errorDiv.textContent = '구글 로그인 준비 중 오류가 발생했습니다.'
-    errorDiv.classList.remove('hidden')
+    console.error('[OAuth] Login preparation failed:', error)
+    isProcessingOAuth = false
+    if (errorDiv) {
+      errorDiv.textContent = '구글 로그인 준비 중 오류가 발생했습니다.'
+      errorDiv.classList.remove('hidden')
+    }
   }
 }
 
-// 🆕 Handle Google OAuth callback
+// 🆕 Handle Google OAuth callback (완전 개선된 버전)
 async function handleGoogleCallback(code, state) {
-  const errorDiv = document.getElementById('error-message')
-  errorDiv.classList.add('hidden')
+  console.log('[OAuth] Processing callback with code:', code?.substring(0, 20) + '...')
 
-  console.log('[Google Callback] Processing code:', code)
+  // 중복 처리 방지
+  if (isProcessingOAuth && isProcessingOAuth !== 'callback') {
+    console.log('[OAuth] Already processing, skipping')
+    return
+  }
+  isProcessingOAuth = 'callback'
 
   try {
-    // 🔥 하이브리드 앱: In-App Browser 닫기
-    if (Capacitor && Browser && Capacitor.isNativePlatform()) {
-      console.log('[Hybrid App] Closing in-app browser before callback processing')
-      try {
-        await Browser.close()
-      } catch (e) {
-        console.log('[Hybrid App] Browser already closed or error:', e)
+    // 🔥 localStorage에서 상태 확인
+    const storedState = localStorage.getItem('google_oauth_state')
+    const timestamp = localStorage.getItem('google_oauth_timestamp')
+
+    // 타임스탬프 검증 (10분 제한)
+    if (timestamp) {
+      const elapsed = Date.now() - parseInt(timestamp)
+      if (elapsed > 10 * 60 * 1000) {
+        throw new Error('인증 시간이 만료되었습니다. 다시 시도해주세요.')
       }
     }
 
-    // Verify state
-    const storedState = sessionStorage.getItem('google_oauth_state')
+    // State 검증 (개발 환경에서는 경고만)
     if (state && storedState && state !== storedState) {
-      console.error('[Google Callback] State mismatch:', state, storedState)
-      // throw new Error('State mismatch - possible CSRF attack') // Temporarily allow for debugging
+      console.warn('[OAuth] State mismatch - stored:', storedState, 'received:', state)
+      // 프로덕션에서는 보안을 위해 에러 처리 권장
+      // throw new Error('State mismatch - possible CSRF attack')
     }
 
-    // Step 2: Exchange code for token
+    // 토큰 교환
+    console.log('[OAuth] Exchanging code for token...')
     const response = await axios.post(`${API_BASE}/auth/google/callback`, {
       code,
       state
     })
 
-    const { data } = response.data
-    saveAuthState(data, data.token)
-    
-    // Clear state from session
-    sessionStorage.removeItem('google_oauth_state')
-    
-    console.log('[Google Callback] Login successful, rendering app')
-    
-    // 🔥 Force reload to ensure clean state
-    if (Capacitor && Capacitor.isNativePlatform()) {
-      window.location.reload()
+    console.log('[OAuth] Server response received')
+
+    // 🔥 다양한 응답 구조에 대응
+    let userData, token
+    const responseBody = response.data
+
+    if (responseBody.data && responseBody.data.token) {
+      userData = responseBody.data
+      token = responseBody.data.token
+    } else if (responseBody.token) {
+      userData = responseBody
+      token = responseBody.token
+    } else if (responseBody.user && responseBody.token) {
+      userData = responseBody.user
+      token = responseBody.token
     } else {
-      renderApp()
+      console.error('[OAuth] Invalid server response:', responseBody)
+      throw new Error('서버 응답에서 인증 토큰을 찾을 수 없습니다')
     }
+
+    console.log('[OAuth] Authentication successful for:', userData.username || userData.email)
+
+    // 인증 정보 저장
+    saveAuthState(userData, token)
+
+    // 상태 정리
+    localStorage.removeItem('google_oauth_state')
+    localStorage.removeItem('google_oauth_timestamp')
+    isProcessingOAuth = false
+
+    // 🔥 핵심: reload() 대신 직접 렌더링
+    showToast('로그인 성공!', 'success')
+    setTimeout(() => {
+      renderApp()
+    }, 500)
+
   } catch (error) {
-    errorDiv.textContent = error.response?.data?.error || '구글 로그인 중 오류가 발생했습니다.'
-    errorDiv.classList.remove('hidden')
-    console.error('Google callback error:', error)
+    console.error('[OAuth] Callback processing failed:', error)
+    isProcessingOAuth = false
+
+    // 상태 정리
+    localStorage.removeItem('google_oauth_state')
+    localStorage.removeItem('google_oauth_timestamp')
+
+    const errorMsg = error.response?.data?.error || error.message || '구글 로그인 중 오류가 발생했습니다.'
+    showToast(errorMsg, 'error', 5000)
+
+    // 에러 시 로그인 페이지로 복귀
+    setTimeout(() => {
+      renderApp()
+    }, 1000)
   }
 }
 
@@ -738,66 +808,66 @@ async function handleGoogleSignIn(credentialResponse) {
 document.addEventListener('DOMContentLoaded', () => {
   // 🔥 Hybrid App: Register App URL Listener for OAuth callback
   if (Capacitor && App && Capacitor.isNativePlatform()) {
-    console.log('[Hybrid App] Registering App URL Listener for OAuth')
-    
-    App.addListener('appUrlOpen', async (data) => {
-      console.log('[Hybrid App] App URL opened:', data.url)
-      
-      // Parse OAuth callback URL
-      const url = new URL(data.url)
-      const code = url.searchParams.get('code')
-      const state = url.searchParams.get('state')
-      const error = url.searchParams.get('error')
-
-      if (error) {
-        console.error('[Hybrid App] OAuth Error:', error)
-        const errorDiv = document.getElementById('error-message')
-        if (errorDiv) {
-          errorDiv.textContent = '로그인 오류: ' + decodeURIComponent(error)
-          errorDiv.classList.remove('hidden')
-        }
-        await Browser.close() // Close browser on error
-        return
-      }
-      
-      if (code) {
-        console.log('[Hybrid App] Handling OAuth callback with code:', code)
-        handleGoogleCallback(code, state)
-      }
-    })
-
-    // 🔥 Safety Check: Also check URL on resume (in case appUrlOpen missed it)
-    App.addListener('resume', async () => {
-      console.log('[Hybrid App] App resumed - checking for pending OAuth')
-      
-      // Give a small delay for any pending appUrlOpen events to fire first
-      setTimeout(async () => {
-        // We can't easily get the last intent URL in JS without a plugin, 
-        // but we can check if we were expecting a login
-        const storedState = sessionStorage.getItem('google_oauth_state')
-        if (storedState) {
-          console.log('[Hybrid App] Found pending OAuth state, but no URL event fired yet.')
-          console.log('[Hybrid App] Attempting to check clipboard or last URL if possible (not implemented)')
-          
-          // Fallback: If we have a stored state but no callback, we might have missed the deep link.
-          // In a real scenario, we might want to check if the app was opened with a specific URL via a plugin method.
-          // For now, let's just log it.
-        }
-      }, 1000)
-    })
+//    console.log('[Hybrid App] Registering App URL Listener for OAuth')
+//
+//    App.addListener('appUrlOpen', async (data) => {
+//      console.log('[Hybrid App] App URL opened:', data.url)
+//
+//      // Parse OAuth callback URL
+//      const url = new URL(data.url)
+//      const code = url.searchParams.get('code')
+//      const state = url.searchParams.get('state')
+//      const error = url.searchParams.get('error')
+//
+//      if (error) {
+//        console.error('[Hybrid App] OAuth Error:', error)
+//        const errorDiv = document.getElementById('error-message')
+//        if (errorDiv) {
+//          errorDiv.textContent = '로그인 오류: ' + decodeURIComponent(error)
+//          errorDiv.classList.remove('hidden')
+//        }
+//        await Browser.close() // Close browser on error
+//        return
+//      }
+//
+//      if (code) {
+//        console.log('[Hybrid App] Handling OAuth callback with code:', code)
+//        handleGoogleCallback(code, state)
+//      }
+//    })
+//
+//    // 🔥 Safety Check: Also check URL on resume (in case appUrlOpen missed it)
+//    App.addListener('resume', async () => {
+//      console.log('[Hybrid App] App resumed - checking for pending OAuth')
+//
+//      // Give a small delay for any pending appUrlOpen events to fire first
+//      setTimeout(async () => {
+//        // We can't easily get the last intent URL in JS without a plugin,
+//        // but we can check if we were expecting a login
+//        const storedState = sessionStorage.getItem('google_oauth_state')
+//        if (storedState) {
+//          console.log('[Hybrid App] Found pending OAuth state, but no URL event fired yet.')
+//          console.log('[Hybrid App] Attempting to check clipboard or last URL if possible (not implemented)')
+//
+//          // Fallback: If we have a stored state but no callback, we might have missed the deep link.
+//          // In a real scenario, we might want to check if the app was opened with a specific URL via a plugin method.
+//          // For now, let's just log it.
+//        }
+//      }, 1000)
+//    })
   }
-  
+
   // 🌐 Web: Handle OAuth callback from URL params
-  const params = new URLSearchParams(window.location.search)
-  const code = params.get('code')
-  const state = params.get('state')
-
-  if (code) {
-    // Remove code from URL to prevent resubmission
-    window.history.replaceState({}, document.title, window.location.pathname)
-    // Handle callback
-    handleGoogleCallback(code, state)
-  }
+//  const params = new URLSearchParams(window.location.search)
+//  const code = params.get('code')
+//  const state = params.get('state')
+//
+//  if (code) {
+//    // Remove code from URL to prevent resubmission
+//    window.history.replaceState({}, document.title, window.location.pathname)
+//    // Handle callback
+//    handleGoogleCallback(code, state)
+//  }
 })
 
 // Main page
@@ -3254,4 +3324,108 @@ function getCompletionRateColor(rate) {
   if (rate >= 60) return 'text-blue-600'
   if (rate >= 40) return 'text-yellow-600'
   return 'text-red-600'
+}
+
+// 🆕 OAuth 상태 관리 전역 변수 추가
+let isProcessingOAuth = false
+let pendingOAuthData = null
+
+// 🔥 Capacitor 초기화 및 Deep Link 리스너 즉시 등록
+function setupCapacitorAndOAuth() {
+  if (typeof window.Capacitor !== 'undefined') {
+    Capacitor = window.Capacitor
+    Browser = window.Capacitor.Plugins?.Browser
+    App = window.Capacitor.Plugins?.App
+
+    console.log('[Capacitor] Initialized successfully')
+    console.log('[Capacitor] Platform:', Capacitor.getPlatform())
+    console.log('[Capacitor] Is Native:', Capacitor.isNativePlatform())
+
+    // 🚀 Deep Link 리스너 즉시 등록 (가장 중요!)
+    if (App && Capacitor.isNativePlatform()) {
+      console.log('[OAuth] Registering Deep Link listener immediately')
+
+      App.addListener('appUrlOpen', async (event) => {
+        console.log('[OAuth] Deep Link received:', event.url)
+
+        try {
+          // In-App Browser 즉시 닫기
+          if (Browser) {
+            await Browser.close().catch(() => console.log('[OAuth] Browser already closed'))
+          }
+
+          const url = new URL(event.url)
+          const code = url.searchParams.get('code')
+          const state = url.searchParams.get('state')
+          const error = url.searchParams.get('error')
+
+          if (error) {
+            console.error('[OAuth] Authentication error:', error)
+            showToast('로그인 오류: ' + decodeURIComponent(error), 'error')
+            return
+          }
+
+          if (code) {
+            console.log('[OAuth] Code received, processing...')
+            isProcessingOAuth = true
+
+            // DOM이 준비되었는지 확인
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+              // 로딩 화면 표시 후 처리
+              showOAuthLoadingScreen()
+              setTimeout(() => handleGoogleCallback(code, state), 300)
+            } else {
+              // DOM 준비 전이면 데이터 저장 후 DOMContentLoaded에서 처리
+              console.log('[OAuth] DOM not ready, storing callback data')
+              pendingOAuthData = { code, state }
+            }
+          }
+        } catch (parseError) {
+          console.error('[OAuth] Deep Link parsing error:', parseError)
+          isProcessingOAuth = false
+        }
+      })
+
+      console.log('[OAuth] Deep Link listener registered successfully')
+    }
+    return true
+  }
+  console.log('[Capacitor] Not available - running in web mode')
+  return false
+}
+
+// 🔥 OAuth 로딩 화면 함수
+function showOAuthLoadingScreen() {
+  const app = document.getElementById('app')
+  if (app) {
+    app.innerHTML = `
+      <div class="min-h-screen flex items-center justify-center"
+           style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="bg-white rounded-2xl shadow-xl p-8 text-center max-w-md mx-4">
+          <div class="text-5xl text-blue-500 mb-4">
+            <i class="fas fa-spinner fa-spin"></i>
+          </div>
+          <h2 class="text-xl font-bold text-gray-800 mb-2">구글 로그인 처리 중</h2>
+          <p class="text-gray-600">잠시만 기다려주세요...</p>
+          <div class="mt-4 w-full bg-gray-200 rounded-full h-2">
+            <div class="bg-blue-500 h-2 rounded-full animate-pulse" style="width: 70%"></div>
+          </div>
+        </div>
+      </div>
+    `
+  }
+}
+
+// 🔥 스크립트 로드 즉시 실행 + 재시도 로직
+setupCapacitorAndOAuth()
+
+// Capacitor가 비동기 로드될 수 있으므로 재시도
+if (typeof window.Capacitor === 'undefined') {
+  let retryCount = 0
+  const retryInterval = setInterval(() => {
+    if (setupCapacitorAndOAuth() || retryCount > 20) {
+      clearInterval(retryInterval)
+    }
+    retryCount++
+  }, 100)
 }
