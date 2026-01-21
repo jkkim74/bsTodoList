@@ -30,7 +30,8 @@ auth.get('/google/authorize', async (c) => {
     }
 
     // Generate state for CSRF protection
-    const state = generateState()
+    const platform = c.req.query('platform')
+    const state = generateState() + (platform === 'app' ? '_app' : '')
     
     // In production, store state in session/Redis with expiry
     // For now, we'll send it to client to be passed back
@@ -109,6 +110,8 @@ auth.get('/google/callback', async (c) => {
     }
 
     // Success: Redirect back to app with code and state
+    const isApp = state?.endsWith('_app')
+    
     return c.html(`
       <!DOCTYPE html>
       <html>
@@ -126,6 +129,7 @@ auth.get('/google/callback', async (c) => {
           // Try to open deep link (will work if app is installed)
           window.location.href = deepLink
           
+          ${!isApp ? `
           // Fallback to web redirect after a short delay
           // If deep link works, this won't execute (page will have navigated away)
           setTimeout(() => {
@@ -133,12 +137,20 @@ auth.get('/google/callback', async (c) => {
             const webUrl = '/?code=${code}' + (('${state}') ? '&state=${state}' : '')
             window.location.href = webUrl
           }, 500)
+          ` : `
+          console.log('[OAuth Callback] App mode detected - skipping auto web fallback')
+          `}
         </script>
       </head>
       <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
         <h2>Google 로그인 성공!</h2>
         <p>앱으로 돌아가는 중...</p>
+        ${isApp ? `
+        <p>자동으로 이동하지 않으면 아래 버튼을 눌러주세요.</p>
+        <button onclick="window.location.href=deepLink" style="padding: 10px 20px; background-color: #4F46E5; color: white; border: none; border-radius: 5px; margin-top: 20px; font-size: 16px;">앱으로 돌아가기</button>
+        ` : `
         <p style="color: #666; font-size: 14px;">자동으로 돌아가지 않는다면 <a href="/?code=${code}${state ? '&state=' + state : ''}">여기를 클릭</a>하세요.</p>
+        `}
       </body>
       </html>
     `)

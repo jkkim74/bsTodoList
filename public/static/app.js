@@ -607,7 +607,8 @@ async function handleGoogleLogin() {
 
   try {
     // Step 1: Get authorization URL
-    const authResponse = await axios.get(`${API_BASE}/auth/google/authorize`)
+    const isApp = Capacitor && Browser && Capacitor.isNativePlatform()
+    const authResponse = await axios.get(`${API_BASE}/auth/google/authorize${isApp ? '?platform=app' : ''}`)
     
     // 🔥 응답 검증
     if (!authResponse.data.success) {
