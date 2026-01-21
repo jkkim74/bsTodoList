@@ -759,6 +759,26 @@ document.addEventListener('DOMContentLoaded', () => {
         handleGoogleCallback(code, state)
       }
     })
+
+    // 🔥 Safety Check: Also check URL on resume (in case appUrlOpen missed it)
+    App.addListener('resume', async () => {
+      console.log('[Hybrid App] App resumed - checking for pending OAuth')
+      
+      // Give a small delay for any pending appUrlOpen events to fire first
+      setTimeout(async () => {
+        // We can't easily get the last intent URL in JS without a plugin, 
+        // but we can check if we were expecting a login
+        const storedState = sessionStorage.getItem('google_oauth_state')
+        if (storedState) {
+          console.log('[Hybrid App] Found pending OAuth state, but no URL event fired yet.')
+          console.log('[Hybrid App] Attempting to check clipboard or last URL if possible (not implemented)')
+          
+          // Fallback: If we have a stored state but no callback, we might have missed the deep link.
+          // In a real scenario, we might want to check if the app was opened with a specific URL via a plugin method.
+          // For now, let's just log it.
+        }
+      }, 1000)
+    })
   }
   
   // 🌐 Web: Handle OAuth callback from URL params
