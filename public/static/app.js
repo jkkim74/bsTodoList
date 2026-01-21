@@ -695,7 +695,13 @@ async function handleGoogleCallback(code, state) {
     sessionStorage.removeItem('google_oauth_state')
     
     console.log('[Google Callback] Login successful, rendering app')
-    renderApp()
+    
+    // 🔥 Force reload to ensure clean state
+    if (Capacitor && Capacitor.isNativePlatform()) {
+      window.location.reload()
+    } else {
+      renderApp()
+    }
   } catch (error) {
     errorDiv.textContent = error.response?.data?.error || '구글 로그인 중 오류가 발생했습니다.'
     errorDiv.classList.remove('hidden')
