@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Brain Dumping',
   webDir: 'dist',
   server: {
-    url: 'https://webapp-tvo.pages.dev',
+    //url: 'https://webapp-tvo.pages.dev',
+    url: 'http://localhost:5173',
     cleartext: true
   },
   

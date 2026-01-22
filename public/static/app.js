@@ -119,6 +119,7 @@ function clearAuthState() {
 // Main render function
 function renderApp() {
   const app = document.getElementById('app')
+  console.log("currentUser : ",currentUser);
   if (!currentUser) {
     app.innerHTML = renderLoginPage()
   } else {
