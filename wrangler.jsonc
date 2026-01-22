@@ -6,6 +6,9 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "vars": {
+    "GOOGLE_REDIRECT_URI": "https://webapp-tvo.pages.dev/api/auth/google/callback"
+  },
   "d1_databases": [
     {
       "binding": "DB",
