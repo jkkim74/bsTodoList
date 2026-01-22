@@ -605,15 +605,22 @@ async function handleGoogleLogin() {
   errorDiv.classList.add('hidden')
 
   try {
-    const isApp = Capacitor && Browser && Capacitor.isNativePlatform()
+    // 🔥 Safe check for Capacitor environment
+    const isCapacitor = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+    // 🔥 Browser plugin might be available globally or via Capacitor.Plugins depending on setup
+    const hasBrowser = typeof Browser !== 'undefined';
+    
+    const isApp = isCapacitor && hasBrowser;
 
     console.log('[Google Login] ========================================')
     console.log('[Google Login] Starting authentication flow')
-    console.log('[Google Login] Platform:', isApp ? 'app' : 'web')
+    console.log('[Google Login] Environment Check:', { isCapacitor, hasBrowser, isApp })
     console.log('[Google Login] API Base:', API_BASE)
-    console.log('[Google Login] Request URL:', `${API_BASE}/auth/google/authorize${isApp ? '?platform=app' : ''}`)
+    
+    const requestUrl = `${API_BASE}/auth/google/authorize${isApp ? '?platform=app' : ''}`;
+    console.log('[Google Login] Request URL:', requestUrl)
 
-    const authResponse = await axios.get(`${API_BASE}/auth/google/authorize${isApp ? '?platform=app' : ''}`)
+    const authResponse = await axios.get(requestUrl)
 
     console.log('[Google Login] Auth response received:', authResponse.data)
     console.log('[Google Login] Response status:', authResponse.status)
@@ -629,7 +636,7 @@ async function handleGoogleLogin() {
 
     sessionStorage.setItem('google_oauth_state', state)
 
-    if (isApp && Browser) {
+    if (isApp) {
       console.log('[Hybrid App] Opening OAuth in in-app browser')
 
       await Browser.open({

@@ -155,7 +155,7 @@ auth.get('/google/callback', async (c) => {
             console.log('[OAuth Callback] Deep link timeout, falling back to web redirect')
             const webUrl = '/?code=${code}' + (('${state}') ? '&state=${state}' : '')
             window.location.href = webUrl
-          }, 500)
+          }, 3000)
           ` : `
           console.log('[OAuth Callback] App mode detected - skipping auto web fallback')
           `}
