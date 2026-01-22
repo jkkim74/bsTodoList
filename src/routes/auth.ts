@@ -30,11 +30,16 @@ auth.get('/google/authorize', async (c) => {
   console.log(`[Auth] Google authorize request - platform: ${platform || 'web'}`);
 
   // ✅ platform별 redirect_uri 결정
-  const redirectUri = platform === 'app'
-    ? 'com.braindump.app://oauth-callback'  // 앱용 딥링크
-    : c.env.GOOGLE_REDIRECT_URI!;     // 웹용 URL
+  // Google 웹 클라이언트 ID 정책상, 앱이라도 Custom Scheme(com.xxx://)을 직접 Redirect URI로 쓰면 400 에러 발생함.
+  // 따라서 항상 서버의 HTTPS Callback URL을 Redirect URI로 사용하고, 
+  // 서버 Callback에서 앱인 경우 딥링크로 튕겨주는 방식(Intermediary)을 사용해야 함.
+  const redirectUri = c.env.GOOGLE_REDIRECT_URI;
+  
+  if (!redirectUri) {
+    return c.json({ success: false, error: 'GOOGLE_REDIRECT_URI environment variable is not set' }, 500);
+  }
 
-  console.log(`[Auth] Using redirect_uri: ${redirectUri}`);
+  console.log(`[Auth] Using redirect_uri: ${redirectUri} (Platform: ${platform || 'web'})`);
 
   // ✅ State에 platform 정보 포함 (_app 접미사)
   const state = crypto.randomUUID() + (platform === 'app' ? '_app' : '');
@@ -212,9 +217,13 @@ auth.post('/google/callback', async (c) => {
     }
 
     // ✅ 인증 시와 동일한 redirect_uri 사용 (필수!)
-    const redirectUri = platform === 'app'
-      ? 'com.braindump.app://oauth-callback'
-      : c.env.GOOGLE_REDIRECT_URI!;
+    // /authorize 엔드포인트에서 항상 GOOGLE_REDIRECT_URI를 사용하도록 변경했으므로,
+    // 여기서도 플랫폼 구분 없이 항상 GOOGLE_REDIRECT_URI를 사용해야 함.
+    const redirectUri = c.env.GOOGLE_REDIRECT_URI;
+    
+    if (!redirectUri) {
+      return c.json({ success: false, error: 'GOOGLE_REDIRECT_URI not configured' }, 500);
+    }
 
     console.log(`[Auth] Token exchange with redirect_uri: ${redirectUri}`);
 
