@@ -600,45 +600,81 @@ function handleLogout() {
   renderApp()
 }
 
-// ✅ 수정된 handleGoogleLogin 함수
 async function handleGoogleLogin() {
   const errorDiv = document.getElementById('error-message')
   errorDiv.classList.add('hidden')
 
   try {
     const isApp = Capacitor && Browser && Capacitor.isNativePlatform()
+
+    console.log('[Google Login] ========================================')
+    console.log('[Google Login] Starting authentication flow')
+    console.log('[Google Login] Platform:', isApp ? 'app' : 'web')
+    console.log('[Google Login] API Base:', API_BASE)
+    console.log('[Google Login] Request URL:', `${API_BASE}/auth/google/authorize${isApp ? '?platform=app' : ''}`)
+
     const authResponse = await axios.get(`${API_BASE}/auth/google/authorize${isApp ? '?platform=app' : ''}`)
+
+    console.log('[Google Login] Auth response received:', authResponse.data)
+    console.log('[Google Login] Response status:', authResponse.status)
 
     if (!authResponse.data.success) {
       throw new Error(authResponse.data.error || 'Google 로그인 준비 실패')
     }
 
     const { authUrl, state } = authResponse.data.data
+
+    console.log('[Google Login] Auth URL:', authUrl)
+    console.log('[Google Login] State:', state)
+
     sessionStorage.setItem('google_oauth_state', state)
 
     if (isApp && Browser) {
       console.log('[Hybrid App] Opening OAuth in in-app browser')
 
-      try {
-        // ✅ windowName 제거 또는 _blank로 변경
-        await Browser.open({
-          url: authUrl,
-          // windowName: '_self' 제거!
-          presentationStyle: 'popover'
-        })
+      await Browser.open({
+        url: authUrl,
+        presentationStyle: 'popover'
+      })
 
-        console.log('[Hybrid App] Browser opened successfully')
-      } catch (browserError) {
-        console.error('[Hybrid App] Browser.open() failed:', browserError)
-        throw browserError
-      }
+      console.log('[Hybrid App] Browser opened successfully')
     } else {
+      console.log('[Web] Redirecting to:', authUrl)
       window.location.href = authUrl
     }
+
   } catch (error) {
-    console.error('[Google Login] Error:', error)
-    errorDiv.textContent = '구글 로그인 준비 중 오류가 발생했습니다.'
+    console.error('[Google Login] ========================================')
+    console.error('[Google Login] ERROR OCCURRED')
+    console.error('[Google Login] Error type:', error.constructor.name)
+    console.error('[Google Login] Error message:', error.message)
+
+    // ✅ 상세한 에러 정보 출력
+    if (error.response) {
+      // 서버 응답이 있는 경우 (4xx, 5xx)
+      console.error('[Google Login] Response status:', error.response.status)
+      console.error('[Google Login] Response data:', JSON.stringify(error.response.data, null, 2))
+      console.error('[Google Login] Response headers:', error.response.headers)
+    } else if (error.request) {
+      // 요청은 보냈으나 응답이 없는 경우 (네트워크 오류)
+      console.error('[Google Login] Network error - no response received')
+      console.error('[Google Login] Request details:', error.request)
+    } else {
+      // 요청 설정 중 오류
+      console.error('[Google Login] Request setup error')
+    }
+
+    console.error('[Google Login] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+    console.error('[Google Login] ========================================')
+
+    // 사용자에게 표시할 에러 메시지
+    const errorMessage = error.response?.data?.error
+      || error.message
+      || '구글 로그인 준비 중 오류가 발생했습니다.'
+
+    errorDiv.textContent = errorMessage
     errorDiv.classList.remove('hidden')
+    showToast(errorMessage, 'error')
   }
 }
 
@@ -647,31 +683,44 @@ async function handleGoogleCallback(code, state) {
   const errorDiv = document.getElementById('error-message')
   if (errorDiv) errorDiv.classList.add('hidden')
 
-  console.log('[Google Callback] Processing code:', code)
+  console.log('[Google Callback] ========================================')
+  console.log('[Google Callback] Processing OAuth callback')
+  console.log('[Google Callback] Code received:', code ? 'Yes' : 'No')
+  console.log('[Google Callback] State received:', state ? 'Yes' : 'No')
 
   try {
     const isApp = Capacitor && Capacitor.isNativePlatform()
+    const storedState = sessionStorage.getItem('google_oauth_state')
 
-    // ✅ platform 정보를 백엔드에 전달 (핵심!)
+    console.log('[Google Callback] Platform:', isApp ? 'app' : 'web')
+    console.log('[Google Callback] Stored state:', storedState ? 'Present' : 'Missing')
+
+    // ✅ platform 정보 전달 (핵심!)
     const response = await axios.post(`${API_BASE}/auth/google/callback`, {
       code,
       state,
-      platform: isApp ? 'app' : 'web'  // 필수 추가!
+      platform: isApp ? 'app' : 'web'
     })
+
+    console.log('[Google Callback] Backend response:', response.data)
 
     if (!response.data.success) {
       throw new Error(response.data.error || 'Authentication failed')
     }
 
     const { data } = response.data
+
+    console.log('[Google Callback] User data:', data.user)
+    console.log('[Google Callback] Token present:', data.token ? 'Yes' : 'No')
+
     saveAuthState(data.user, data.token)
     sessionStorage.removeItem('google_oauth_state')
 
-    console.log('[Google Callback] Login successful')
+    console.log('[Google Callback] Login successful, transitioning to main app')
 
     if (isApp) {
-      // 앱에서는 안정적인 상태 전환을 위해 새로고침
       setTimeout(() => {
+        console.log('[Google Callback] Reloading app for clean state')
         window.location.reload()
       }, 500)
     } else {
@@ -679,8 +728,24 @@ async function handleGoogleCallback(code, state) {
     }
 
   } catch (error) {
-    console.error('[Google Callback] Error:', error)
-    const errorMsg = error.response?.data?.error || error.message || '구글 로그인 중 오류가 발생했습니다'
+    console.error('[Google Callback] ========================================')
+    console.error('[Google Callback] ERROR OCCURRED')
+    console.error('[Google Callback] Error type:', error.constructor.name)
+    console.error('[Google Callback] Error message:', error.message)
+
+    if (error.response) {
+      console.error('[Google Callback] Response status:', error.response.status)
+      console.error('[Google Callback] Response data:', JSON.stringify(error.response.data, null, 2))
+    } else if (error.request) {
+      console.error('[Google Callback] Network error')
+    }
+
+    console.error('[Google Callback] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+    console.error('[Google Callback] ========================================')
+
+    const errorMsg = error.response?.data?.error
+      || error.message
+      || '구글 로그인 중 오류가 발생했습니다'
 
     if (errorDiv) {
       errorDiv.textContent = errorMsg
