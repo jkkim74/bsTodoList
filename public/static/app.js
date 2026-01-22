@@ -810,6 +810,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (code) {
         console.log('[Hybrid App] Handling OAuth callback with code:', code)
+        
+        // Close the browser window (important!)
+        try {
+          await Browser.close()
+          console.log('[Hybrid App] Browser window closed')
+        } catch (e) {
+          console.warn('[Hybrid App] Failed to close browser:', e)
+        }
+
         handleGoogleCallback(code, state)
       }
     })

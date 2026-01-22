@@ -33,7 +33,8 @@ auth.get('/google/authorize', async (c) => {
 
   console.log(`[Auth] Using redirect_uri: ${redirectUri}`);
 
-  const state = crypto.randomUUID();
+  // ✅ State에 platform 정보 포함 (_app 접미사)
+  const state = crypto.randomUUID() + (platform === 'app' ? '_app' : '');
 
   // ✅ 수정된 함수에 redirectUri 전달
   const authUrl = getGoogleAuthUrl(state, redirectUri);
