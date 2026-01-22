@@ -600,162 +600,107 @@ function handleLogout() {
   renderApp()
 }
 
+// 🆕 Google Login Handler
 async function handleGoogleLogin() {
   const errorDiv = document.getElementById('error-message')
   errorDiv.classList.add('hidden')
 
   try {
-    const isApp = Capacitor && Browser && Capacitor.isNativePlatform()
-
-    console.log('[Google Login] ========================================')
-    console.log('[Google Login] Starting authentication flow')
-    console.log('[Google Login] Platform:', isApp ? 'app' : 'web')
-    console.log('[Google Login] API Base:', API_BASE)
-    console.log('[Google Login] Request URL:', `${API_BASE}/auth/google/authorize${isApp ? '?platform=app' : ''}`)
-
-    const authResponse = await axios.get(`${API_BASE}/auth/google/authorize${isApp ? '?platform=app' : ''}`)
-
-    console.log('[Google Login] Auth response received:', authResponse.data)
-    console.log('[Google Login] Response status:', authResponse.status)
-
+    // Step 1: Get authorization URL
+    const authResponse = await axios.get(`${API_BASE}/auth/google/authorize`)
+    
+    // 🔥 응답 검증
     if (!authResponse.data.success) {
       throw new Error(authResponse.data.error || 'Google 로그인 준비 실패')
     }
-
+    
     const { authUrl, state } = authResponse.data.data
 
-    console.log('[Google Login] Auth URL:', authUrl)
-    console.log('[Google Login] State:', state)
-
+    // Store state for verification
     sessionStorage.setItem('google_oauth_state', state)
 
-    if (isApp && Browser) {
+    // 🔥 Capacitor 재확인 (비동기 로드 대응)
+    if (!Capacitor && typeof window.Capacitor !== 'undefined') {
+      console.log('[Google Login] Re-initializing Capacitor')
+      initializeCapacitor()
+    }
+
+    // 🔥 Hybrid App: Use in-app browser
+    if (Capacitor && Browser && Capacitor.isNativePlatform()) {
       console.log('[Hybrid App] Opening OAuth in in-app browser')
-
-      await Browser.open({
-        url: authUrl,
-        presentationStyle: 'popover'
-      })
-
-      console.log('[Hybrid App] Browser opened successfully')
+      console.log('[Hybrid App] Auth URL:', authUrl)
+      console.log('[Hybrid App] Platform:', Capacitor.getPlatform())
+      
+      try {
+        // Open in-app browser
+        await Browser.open({
+          url: authUrl,
+          windowName: '_self',
+          presentationStyle: 'popover'
+        })
+        
+        console.log('[Hybrid App] In-app browser opened successfully')
+      } catch (browserError) {
+        console.error('[Hybrid App] Browser.open() failed:', browserError)
+        throw browserError
+      }
+      
+      // The callback will be handled by App URL Listener (see DOMContentLoaded)
     } else {
-      console.log('[Web] Redirecting to:', authUrl)
+      // 🌐 Web: Use standard redirect
+      console.log('[Web] Redirecting to OAuth URL')
+      console.log('[Web] Capacitor available:', typeof window.Capacitor !== 'undefined')
+      console.log('[Web] Capacitor.isNativePlatform:', Capacitor?.isNativePlatform())
       window.location.href = authUrl
     }
-
   } catch (error) {
-    console.error('[Google Login] ========================================')
-    console.error('[Google Login] ERROR OCCURRED')
-    console.error('[Google Login] Error type:', error.constructor.name)
-    console.error('[Google Login] Error message:', error.message)
-
-    // ✅ 상세한 에러 정보 출력
-    if (error.response) {
-      // 서버 응답이 있는 경우 (4xx, 5xx)
-      console.error('[Google Login] Response status:', error.response.status)
-      console.error('[Google Login] Response data:', JSON.stringify(error.response.data, null, 2))
-      console.error('[Google Login] Response headers:', error.response.headers)
-    } else if (error.request) {
-      // 요청은 보냈으나 응답이 없는 경우 (네트워크 오류)
-      console.error('[Google Login] Network error - no response received')
-      console.error('[Google Login] Request details:', error.request)
-    } else {
-      // 요청 설정 중 오류
-      console.error('[Google Login] Request setup error')
-    }
-
-    console.error('[Google Login] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
-    console.error('[Google Login] ========================================')
-
-    // 사용자에게 표시할 에러 메시지
-    const errorMessage = error.response?.data?.error
-      || error.message
-      || '구글 로그인 준비 중 오류가 발생했습니다.'
-
-    errorDiv.textContent = errorMessage
+    console.error('[Google Login] Error:', error)
+    errorDiv.textContent = '구글 로그인 준비 중 오류가 발생했습니다.'
     errorDiv.classList.remove('hidden')
-    showToast(errorMessage, 'error')
   }
 }
 
-
+// 🆕 Handle Google OAuth callback
 async function handleGoogleCallback(code, state) {
   const errorDiv = document.getElementById('error-message')
-  if (errorDiv) errorDiv.classList.add('hidden')
-
-  console.log('[Google Callback] ========================================')
-  console.log('[Google Callback] Processing OAuth callback')
-  console.log('[Google Callback] Code received:', code ? 'Yes' : 'No')
-  console.log('[Google Callback] State received:', state ? 'Yes' : 'No')
+  errorDiv.classList.add('hidden')
 
   try {
-    const isApp = Capacitor && Capacitor.isNativePlatform()
+    // 🔥 하이브리드 앱: In-App Browser 닫기
+    if (Capacitor && Browser && Capacitor.isNativePlatform()) {
+      console.log('[Hybrid App] Closing in-app browser before callback processing')
+      try {
+        await Browser.close()
+      } catch (e) {
+        console.log('[Hybrid App] Browser already closed or error:', e)
+      }
+    }
+
+    // Verify state
     const storedState = sessionStorage.getItem('google_oauth_state')
+    if (state && storedState && state !== storedState) {
+      throw new Error('State mismatch - possible CSRF attack')
+    }
 
-    console.log('[Google Callback] Platform:', isApp ? 'app' : 'web')
-    console.log('[Google Callback] Stored state:', storedState ? 'Present' : 'Missing')
-
-    // ✅ platform 정보 전달 (핵심!)
+    // Step 2: Exchange code for token
     const response = await axios.post(`${API_BASE}/auth/google/callback`, {
       code,
-      state,
-      platform: isApp ? 'app' : 'web'
+      state
     })
 
-    console.log('[Google Callback] Backend response:', response.data)
-
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Authentication failed')
-    }
-
     const { data } = response.data
-
-    console.log('[Google Callback] User data:', data.user)
-    console.log('[Google Callback] Token present:', data.token ? 'Yes' : 'No')
-
-    saveAuthState(data.user, data.token)
+    saveAuthState(data, data.token)
+    
+    // Clear state from session
     sessionStorage.removeItem('google_oauth_state')
-
-    console.log('[Google Callback] Login successful, transitioning to main app')
-
-    if (isApp) {
-      setTimeout(() => {
-        console.log('[Google Callback] Reloading app for clean state')
-        window.location.reload()
-      }, 500)
-    } else {
-      renderApp()
-    }
-
+    
+    renderApp()
   } catch (error) {
-    console.error('[Google Callback] ========================================')
-    console.error('[Google Callback] ERROR OCCURRED')
-    console.error('[Google Callback] Error type:', error.constructor.name)
-    console.error('[Google Callback] Error message:', error.message)
-
-    if (error.response) {
-      console.error('[Google Callback] Response status:', error.response.status)
-      console.error('[Google Callback] Response data:', JSON.stringify(error.response.data, null, 2))
-    } else if (error.request) {
-      console.error('[Google Callback] Network error')
-    }
-
-    console.error('[Google Callback] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
-    console.error('[Google Callback] ========================================')
-
-    const errorMsg = error.response?.data?.error
-      || error.message
-      || '구글 로그인 중 오류가 발생했습니다'
-
-    if (errorDiv) {
-      errorDiv.textContent = errorMsg
-      errorDiv.classList.remove('hidden')
-    }
-
-    showToast(errorMsg, 'error')
+    errorDiv.textContent = error.response?.data?.error || '구글 로그인 중 오류가 발생했습니다.'
+    errorDiv.classList.remove('hidden')
+    console.error('Google callback error:', error)
   }
 }
-
 
 // 🆕 Alternative: Direct Google Sign-In using ID Token
 // Requires: <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -787,54 +732,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // 🔥 Hybrid App: Register App URL Listener for OAuth callback
   if (Capacitor && App && Capacitor.isNativePlatform()) {
     console.log('[Hybrid App] Registering App URL Listener for OAuth')
-
+    
     App.addListener('appUrlOpen', async (data) => {
       console.log('[Hybrid App] App URL opened:', data.url)
-
+      
       // Parse OAuth callback URL
       const url = new URL(data.url)
       const code = url.searchParams.get('code')
       const state = url.searchParams.get('state')
-      const error = url.searchParams.get('error')
-
-      if (error) {
-        console.error('[Hybrid App] OAuth Error:', error)
-        const errorDiv = document.getElementById('error-message')
-        if (errorDiv) {
-          errorDiv.textContent = '로그인 오류: ' + decodeURIComponent(error)
-          errorDiv.classList.remove('hidden')
-        }
-        await Browser.close() // Close browser on error
-        return
-      }
-
+      
       if (code) {
         console.log('[Hybrid App] Handling OAuth callback with code:', code)
+        // Browser.close()는 handleGoogleCallback 내부에서 호출됨
         handleGoogleCallback(code, state)
       }
     })
-
-    // 🔥 Safety Check: Also check URL on resume (in case appUrlOpen missed it)
-    App.addListener('resume', async () => {
-      console.log('[Hybrid App] App resumed - checking for pending OAuth')
-
-      // Give a small delay for any pending appUrlOpen events to fire first
-      setTimeout(async () => {
-        // We can't easily get the last intent URL in JS without a plugin,
-        // but we can check if we were expecting a login
-        const storedState = sessionStorage.getItem('google_oauth_state')
-        if (storedState) {
-          console.log('[Hybrid App] Found pending OAuth state, but no URL event fired yet.')
-          console.log('[Hybrid App] Attempting to check clipboard or last URL if possible (not implemented)')
-
-          // Fallback: If we have a stored state but no callback, we might have missed the deep link.
-          // In a real scenario, we might want to check if the app was opened with a specific URL via a plugin method.
-          // For now, let's just log it.
-        }
-      }, 1000)
-    })
   }
-
+  
   // 🌐 Web: Handle OAuth callback from URL params
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
@@ -3302,61 +3216,4 @@ function getCompletionRateColor(rate) {
   if (rate >= 60) return 'text-blue-600'
   if (rate >= 40) return 'text-yellow-600'
   return 'text-red-600'
-}
-
-// ✅ 개선된 리스너 등록 (즉시 실행)
-function initializeAppUrlListener() {
-  if (Capacitor && App && Capacitor.isNativePlatform()) {
-    console.log('[Hybrid App] Registering App URL Listener')
-
-    App.addListener('appUrlOpen', async (data) => {
-      console.log('[Hybrid App] Deep Link received:', data.url)
-
-      try {
-        const url = new URL(data.url)
-        const code = url.searchParams.get('code')
-        const state = url.searchParams.get('state')
-        const error = url.searchParams.get('error')
-
-        if (error) {
-          console.error('[Hybrid App] OAuth Error:', error)
-          showToast('로그인 오류: ' + decodeURIComponent(error), 'error')
-          return
-        }
-
-        if (code) {
-          console.log('[Hybrid App] Processing OAuth callback')
-
-          // 브라우저 닫기
-          if (Browser) {
-            try {
-              await Browser.close()
-            } catch (e) {
-              console.log('[Hybrid App] Browser already closed:', e)
-            }
-          }
-
-          // 약간의 딜레이 후 콜백 처리
-          setTimeout(() => {
-            handleGoogleCallback(code, state)
-          }, 300)
-        }
-      } catch (err) {
-        console.error('[Hybrid App] URL parsing error:', err)
-        showToast('로그인 처리 중 오류가 발생했습니다', 'error')
-      }
-    })
-
-    return true
-  }
-  return false
-}
-
-// 즉시 실행 + fallback
-if (!initializeAppUrlListener()) {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeAppUrlListener)
-  } else {
-    setTimeout(initializeAppUrlListener, 100)
-  }
 }
