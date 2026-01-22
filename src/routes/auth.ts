@@ -22,7 +22,7 @@ import { sendVerificationEmail } from '../utils/email'
 const auth = new Hono<{ Bindings: Env }>()
 
 // ✅ GET /google/authorize - 인증 URL 생성
-app.get('/google/authorize', async (c) => {
+auth.get('/google/authorize', async (c) => {
   const platform = c.req.query('platform');
   console.log(`[Auth] Google authorize request - platform: ${platform || 'web'}`);
 
@@ -181,7 +181,7 @@ auth.get('/google/callback', async (c) => {
 })
 
 // ✅ POST /google/callback - 토큰 교환
-app.post('/google/callback', async (c) => {
+auth.post('/google/callback', async (c) => {
   try {
     const body = await c.req.json();
     const { code, state, platform } = body;  // ✅ platform 추가 필수
