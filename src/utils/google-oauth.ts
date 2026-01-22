@@ -156,57 +156,45 @@ export function stateCache() {
   }
 }
 
-// ✅ 1. getGoogleAuthUrl 함수 수정
+// ✅ 1. getGoogleAuthUrl Wrapper
 export const getGoogleAuthUrl = (
+  clientId: string,
   state: string,
-  redirectUri: string = process.env.GOOGLE_REDIRECT_URI!
+  redirectUri: string
 ) => {
-  const client = new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    redirectUri  // ✅ 동적 URI 사용
-  );
-
-  return client.generateAuthUrl({
-    access_type: 'offline',
-    scope: ['openid', 'email', 'profile'],
-    state: state,
-    prompt: 'consent'  // 모바일에서 계정 선택이 잘 되도록
-  });
+  return generateGoogleOAuthUrl(clientId, redirectUri, state);
 };
 
-// ✅ 2. validateGoogleCallback 함수 수정
+// ✅ 2. validateGoogleCallback Wrapper
 export const validateGoogleCallback = async (
   code: string,
-  redirectUri: string = process.env.GOOGLE_REDIRECT_URI!
+  clientId: string,
+  clientSecret: string,
+  redirectUri: string
 ) => {
-  const client = new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    redirectUri  // ✅ 인증 시와 동일한 URI 필수!
-  );
-
-  try {
-    console.log(`[Google OAuth] Exchanging token with redirect_uri: ${redirectUri}`);
-
-    const { tokens } = await client.getToken(code);
-    client.setCredentials(tokens);
-
-    const ticket = await client.verifyIdToken({
-      idToken: tokens.id_token!,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-
-    const payload = ticket.getPayload();
-    console.log(`[Google OAuth] User verified: ${payload?.email}`);
-
-    return {
-      ...payload,
-      tokens
-    };
-  } catch (error) {
-    console.error('[Google OAuth] Token exchange failed:', error);
-    throw error;
+  console.log(`[Google OAuth] Exchanging token with redirect_uri: ${redirectUri}`);
+  
+  const tokens = await exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
+  
+  let userInfo;
+  if (tokens.id_token) {
+    try {
+       // Basic decode to avoid extra fetch if possible
+       const parts = tokens.id_token.split('.');
+       const payload = JSON.parse(atob(parts[1]));
+       userInfo = payload;
+    } catch (e) {
+      console.warn('Failed to decode ID token, fetching user info', e);
+      userInfo = await getGoogleUserInfo(tokens.access_token);
+    }
+  } else {
+    userInfo = await getGoogleUserInfo(tokens.access_token);
   }
-};
 
+  console.log(`[Google OAuth] User verified: ${userInfo.email}`);
+  
+  return {
+    ...userInfo,
+    tokens
+  };
+};

@@ -3,6 +3,7 @@ export interface Env {
   DB: D1Database
   VITE_GOOGLE_CLIENT_ID?: string
   GOOGLE_CLIENT_SECRET?: string
+  GOOGLE_REDIRECT_URI?: string
   EMAIL_SERVICE_ENABLED?: boolean
   EMAIL_WORKER_URL?: string
   SENDGRID_API_KEY?: string

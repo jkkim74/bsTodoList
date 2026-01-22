@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { setCookie, getCookie } from 'hono/cookie'
 import type { Env, SignupRequest, LoginRequest, VerifyEmailRequest, AuthResponse, GoogleOAuthCallbackRequest } from '../types'
 import { 
   hashPassword, 
@@ -14,7 +15,9 @@ import {
   exchangeCodeForToken,
   getGoogleUserInfo,
   generateState,
-  GoogleOAuthError
+  GoogleOAuthError,
+  getGoogleAuthUrl,
+  validateGoogleCallback
 } from '../utils/google-oauth'
 import { successResponse, errorResponse, getCurrentDateTime } from '../utils/response'
 import { sendVerificationEmail } from '../utils/email'
@@ -29,7 +32,7 @@ auth.get('/google/authorize', async (c) => {
   // ✅ platform별 redirect_uri 결정
   const redirectUri = platform === 'app'
     ? 'com.braindump.app://oauth-callback'  // 앱용 딥링크
-    : process.env.GOOGLE_REDIRECT_URI!;     // 웹용 URL
+    : c.env.GOOGLE_REDIRECT_URI!;     // 웹용 URL
 
   console.log(`[Auth] Using redirect_uri: ${redirectUri}`);
 
@@ -37,7 +40,11 @@ auth.get('/google/authorize', async (c) => {
   const state = crypto.randomUUID() + (platform === 'app' ? '_app' : '');
 
   // ✅ 수정된 함수에 redirectUri 전달
-  const authUrl = getGoogleAuthUrl(state, redirectUri);
+  const clientId = c.env.VITE_GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    return c.json({ success: false, error: 'Google Client ID not configured' }, 500);
+  }
+  const authUrl = getGoogleAuthUrl(clientId, state, redirectUri);
 
   // State 쿠키 저장 (웹용)
   setCookie(c, 'oauth_state', state, {
@@ -207,12 +214,20 @@ auth.post('/google/callback', async (c) => {
     // ✅ 인증 시와 동일한 redirect_uri 사용 (필수!)
     const redirectUri = platform === 'app'
       ? 'com.braindump.app://oauth-callback'
-      : process.env.GOOGLE_REDIRECT_URI!;
+      : c.env.GOOGLE_REDIRECT_URI!;
 
     console.log(`[Auth] Token exchange with redirect_uri: ${redirectUri}`);
 
     // ✅ 수정된 함수에 redirectUri 전달
-    const googleUser = await validateGoogleCallback(code, redirectUri);
+    const clientId = c.env.VITE_GOOGLE_CLIENT_ID;
+    const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+    
+    if (!clientId || !clientSecret) {
+      console.error('[Auth] Google credentials missing');
+      return c.json({ success: false, error: 'Server configuration error' }, 500);
+    }
+    
+    const googleUser = await validateGoogleCallback(code, clientId, clientSecret, redirectUri);
 
     // 기존 사용자 처리 로직 (DB 조회/생성, JWT 발급 등)
     // const user = await findOrCreateUser(googleUser);
